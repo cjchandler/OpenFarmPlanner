@@ -2,6 +2,7 @@ import geopy
 import geopy.distance
 import numpy as np
 import pandas as pd
+import time
 
 
 # farm planner farm class 
@@ -19,6 +20,7 @@ class farm_data:
 class soil_plot:
     def __init__(self):
         self.details  = {}
+        self.details['id'] = time.time() #unique identifier. pick something better later I guess
         self.details['soil_type'] = "clay loam" 
         self.details['water_saturation_fraction'] = 1.0 
         self.details['water_field_capacity_mm/m2'] = 60
@@ -63,7 +65,7 @@ class crop_event:
         self.details['human_instructions'] = " walk to farm "
         self.details['time_estimate_min'] = 0
         self.details['time_taken_min'] = -1
-        self.details['soil_plot_list'] =  []
+        self.details['soil_plot_ids'] =  []
         self.details['tools used'] = ["boots", "coat"]
         self.details['consumables_used'] = ["string"]
 
@@ -141,6 +143,6 @@ pNES =   d.destination(point=pNE, bearing=180)
 s1 = soil_plot()
 s1.details['corner_gps_points'] = [ start , pN , pNE , pNES ] 
 
-CE.details["soil_plot_list"] = [s1]
+CE.details["soil_plot_list"] = [s1.details["id"] ]
 
 
