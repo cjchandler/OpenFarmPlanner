@@ -67,18 +67,18 @@ class crop_event:
         self.details['tools used'] = ["boots", "coat"]
         self.details['consumables_used'] = ["string"]
 
-    def command_line_event_fill(self):
-        print( "what is the event name?")
-        x = input()
-        self.details['event_name'] = x 
+    # ~ def command_line_event_fill(self):
+        # ~ print( "what is the event name?")
+        # ~ x = input()
+        # ~ self.details['event_name'] = x 
         
-        print( "what are the instructions?")
-        x = input()
-        self.details['human_instructions'] = x 
+        # ~ print( "what are the instructions?")
+        # ~ x = input()
+        # ~ self.details['human_instructions'] = x 
         
-        print( "what is the time estimate in min?")
-        x = input()
-        self.details['time_estimate_min'] = x 
+        # ~ print( "what is the time estimate in min?")
+        # ~ x = input()
+        # ~ self.details['time_estimate_min'] = x 
       
     def load_from_csv(self , filename ):
         df = pd.read_csv(filename) 
@@ -94,38 +94,7 @@ class crop_event:
             self.details[val] = l
         
         print(self.details)
-        quit()
-                
-        loaded_details = {}
-        for k in self.details:
-            l = df[k].to_list()
-            print("this is the raw list", l )
-            for a in l:
-                try: 
-                    l.remove(np.nan)
-                except:
-                    pass 
-                    
-            
-
-
-            # ~ col_list.remove(np.nan)
-            
-            # ~ col_list = df[k].to_numpy()
-            # ~ for x in col_list:
-                # ~ if( x != np.nan):
-                    # ~ print(x)
-            
-            print("this is the filtered list", l)
-
-            
-            if len(l) == 1:
-                loaded_details[k] = l[0] 
-            else:
-                loaded_details[k] = l
-        
-        self.details = loaded_details
-        print( self.details)
+       
 
         
     def save_as_csv(self , filename ):
@@ -155,12 +124,7 @@ class crop_event:
 CE = crop_event()
 CE.save_as_csv("my_test_event.csv")
 CE.load_from_csv("plant_lettuce_event.csv")
-quit()
-
-a = {'b':[100],'c':[300,400]}
-b = pd.DataFrame(a) 
-print(b)
-quit() 
+ 
 
 # Define starting point.
 start = geopy.Point(42.91298, -66.071038)
@@ -176,3 +140,7 @@ pNES =   d.destination(point=pNE, bearing=180)
 
 s1 = soil_plot()
 s1.details['corner_gps_points'] = [ start , pN , pNE , pNES ] 
+
+CE.details["soil_plot_list"] = [s1]
+
+
