@@ -1,3 +1,9 @@
+import geopy
+import geopy.distance
+import numpy as np
+import pandas as pd
+
+
 # farm planner farm class 
 class farm_data:
     def __init__(self):
@@ -29,13 +35,144 @@ class crop_plan:
         self.details = {}
         self.details['cultivar'] = " " 
         self.details[''] = " " 
+    
          
+    def make_all_events(self):
+        #well obviosly there needs to be a data base of how to do each crop. 
+        #then we also can look back at other times we did this crop
+        
+        print("This is setting up the crop plan. What is the cultivar name?")
+        n = input()
+        self.details['cultivar'] = lower(n) 
+
+        #TODO look in the archives, have we done this before? 
+        previous_same_crops = False 
+        # ~ if(previous_same_crops == False):
+            #add some basic events:
+            #soil prep 
+            
+            #planting 
+            #weeding
+            #harvesting 
+
         
 class crop_event:
     def __init__(self):
         self.details = {}
-        self.details['event_name'] = " "
-        self.details['human_instructions'] = " "
+        self.details['event_name'] = "name of event"
+        self.details['human_instructions'] = " walk to farm "
         self.details['time_estimate_min'] = 0
         self.details['time_taken_min'] = -1
-        self.details['soil_plot_list'] =  [] 
+        self.details['soil_plot_list'] =  []
+        self.details['tools used'] = ["boots", "coat"]
+        self.details['consumables_used'] = ["string"]
+
+    def command_line_event_fill(self):
+        print( "what is the event name?")
+        x = input()
+        self.details['event_name'] = x 
+        
+        print( "what are the instructions?")
+        x = input()
+        self.details['human_instructions'] = x 
+        
+        print( "what is the time estimate in min?")
+        x = input()
+        self.details['time_estimate_min'] = x 
+      
+    def load_from_csv(self , filename ):
+        df = pd.read_csv(filename) 
+        keys = df.columns.to_list()
+        D = df.to_numpy()
+        print(keys)
+        print(D)
+        
+        for i, val in enumerate(keys):
+            col_values = D[:,i]
+            l = [x for x in col_values if str(x) != 'nan']
+            # ~ print(l)
+            self.details[val] = l
+        
+        print(self.details)
+        quit()
+                
+        loaded_details = {}
+        for k in self.details:
+            l = df[k].to_list()
+            print("this is the raw list", l )
+            for a in l:
+                try: 
+                    l.remove(np.nan)
+                except:
+                    pass 
+                    
+            
+
+
+            # ~ col_list.remove(np.nan)
+            
+            # ~ col_list = df[k].to_numpy()
+            # ~ for x in col_list:
+                # ~ if( x != np.nan):
+                    # ~ print(x)
+            
+            print("this is the filtered list", l)
+
+            
+            if len(l) == 1:
+                loaded_details[k] = l[0] 
+            else:
+                loaded_details[k] = l
+        
+        self.details = loaded_details
+        print( self.details)
+
+        
+    def save_as_csv(self , filename ):
+        max_len = 0
+        for k in self.details:
+            print(self.details[k])
+            if isinstance(self.details[k], list):
+                
+                if( len( self.details[k]) > max_len):
+                    max_len = len( self.details[k])
+        print("max_len" , max_len  ) 
+        for k in self.details:
+            if  isinstance(self.details[k], list) == True:
+                #add padding with 0 or " "
+                n_padding = max_len - len(self.details[k]) 
+                self.details[k] = self.details[k]+ [""]*n_padding 
+            if  isinstance(self.details[k], list) == False:
+                start_list = [ self.details[k] ]
+                n_padding = max_len - 1 
+                self.details[k] = start_list + [""]*n_padding 
+            
+        df = pd.DataFrame(self.details)
+        df.to_csv(filename)
+
+
+
+CE = crop_event()
+CE.save_as_csv("my_test_event.csv")
+CE.load_from_csv("plant_lettuce_event.csv")
+quit()
+
+a = {'b':[100],'c':[300,400]}
+b = pd.DataFrame(a) 
+print(b)
+quit() 
+
+# Define starting point.
+start = geopy.Point(42.91298, -66.071038)
+
+# Define a general distance object, initialized with a distance of 1 m.
+d = geopy.distance.distance(kilometers = 0.001)
+
+# Use the `destination` method with a bearing of 0 degrees (which is north)
+# in order to go from point `start` 1 m to north.
+pN =   d.destination(point=start, bearing=0)
+pNE =   d.destination(point=pN, bearing=90)
+pNES =   d.destination(point=pNE, bearing=180)
+
+s1 = soil_plot()
+s1.details['corner_gps_points'] = [ start , pN , pNE , pNES ] 
