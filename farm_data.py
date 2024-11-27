@@ -3,7 +3,20 @@ import geopy.distance
 import numpy as np
 import pandas as pd
 import time
+import datetime
 
+
+
+
+def date_string_to_timestamp( datestring):
+    l = datestring.split('-')
+    dt= datetime.datetime(int(l[2]), int(l[1]) , int(l[0]) )
+    timestamp = (dt - datetime(1970, 1, 1)) / timedelta(seconds=1)
+    return timestamp
+
+def timestamp_to_date( ts):
+    dt_object = datetime.fromtimestamp(timestamp)
+    return str(dt_object.day) + '-' + str(dt_object.month) + '-' + str(dt_object.year)
 
 # farm planner farm class 
 class farm_data:
@@ -17,6 +30,21 @@ class farm_data:
             
         #economic information, what are the seaonal demand curves looking like for each crop?
     
+
+class weather:
+    def __init__(self):
+        self.last_observed_time = 0 #this is timestamp for the last actual data we have, after that it's all prediction
+        self.df_daily = pd.DataFrame() #this is observed and forcast weather all in a lump so we can run the crop model 
+        self.df_observed = pd.DataFrame() #real weather as observed
+        #weather df format:[ 'Day', 'Month' , 'Year' , 'Tmin(C)' , 'Tmax(C)' , 'Prcp(mm)' , 'ET0']
+        
+    def load_observed_weather(self):
+        self.df_observed = pd.read_csv() 
+        
+    def fill_with_prediction_to( self, end_date_str):
+        #look at the observed weather and guess at the future weather
+        
+
 class soil_plot:
     def __init__(self):
         self.details  = {}
@@ -57,6 +85,18 @@ class crop_plan:
             #weeding
             #harvesting 
 
+    def set_event_times(self , planting_date ):
+        for e in self.event_list:
+            if e.details['days after planting'] == 0 or e.details['growing degree days after planting'] == 0
+                #this is the planting date. 
+                e.computer_details['planned_timestamp'] = date_string_to_timestamp(planting_date)
+            #if there are any fixed times, we can do those too: 
+            elif e.details['days after planting'] != 999999 and e.details['days after planting'] != '':
+                e.computer_details['planned_timestamp'] = date_string_to_timestamp(planting_date) + e.details['days after planting']*60*60*24
+                
+        #ok, now we we need to load real + projected weather so we can fill in the times for the gdd dependent events
+
+
         
 class crop_event:
     def __init__(self):
@@ -68,19 +108,14 @@ class crop_event:
         self.details['soil_plot_ids'] =  []
         self.details['tools used'] = ["boots", "coat"]
         self.details['consumables_used'] = ["string"]
-
-    # ~ def command_line_event_fill(self):
-        # ~ print( "what is the event name?")
-        # ~ x = input()
-        # ~ self.details['event_name'] = x 
+        self.details['days after planting'] = 999999
+        self.details['growing degree days after planting'] = 999999
         
-        # ~ print( "what are the instructions?")
-        # ~ x = input()
-        # ~ self.details['human_instructions'] = x 
-        
-        # ~ print( "what is the time estimate in min?")
-        # ~ x = input()
-        # ~ self.details['time_estimate_min'] = x 
+        self.computer_details = {} #this is stuff that the farmer should never have to adjust manually in .csv 
+        self.computer_details['planned_timestamp'] = ' ' 
+        self.computer_details['actual_timestamp_start'] = ' ' 
+        self.computer_details['actual_timestamp_end'] = ' ' 
+ 
       
     def load_from_csv(self , filename ):
         df = pd.read_csv(filename) 
@@ -145,4 +180,24 @@ s1.details['corner_gps_points'] = [ start , pN , pNE , pNES ]
 
 CE.details["soil_plot_list"] = [s1.details["id"] ]
 
+lettuce_plan = crop_plan()
+lettuce_plan.details['cultivar'] = 'salad bowl' 
+
+soil_prep = crop_event()
+soil_prep.load_from_csv( "./lettuce_event_templates/prepare_soil_tarps_event.csv")
+
+planting = crop_event()
+planting.load_from_csv( "./lettuce_event_templates/plant_lettuce_event.csv")
+
+weeding = crop_event()
+weeding.load_from_csv( "./lettuce_event_templates/weed_lettuce_event.csv")
+
+harvesting = crop_event()
+harvesting.load_from_csv( "./lettuce_event_templates/harvest_lettuce_event.csv")
+
+post_harvesting = crop_event()
+post_harvesting.load_from_csv( "./lettuce_event_templates/post_harvest_lettuce_event.csv")
+
+lettuce_plan.event_list = [ soil_prep , planting , harvesting , post_harvesting] 
+#so these are all the events, but they don't have any times associated with them 
 
