@@ -125,9 +125,46 @@ class climate:
 
      
 
+    def get_daily_data_for_year_no_solcast(self, year_start , year_end ) :
+        start = datetime(year_start, 1, 1, 0, 0, 0, 0) 
+        end = datetime(year_end+1, 1, 1, 0, 0, 0, 0) 
+        
+        dfwater = pd.DataFrame()
+        dfwater = self.df_historical.loc[start:end]
+        
+        df = pd.DataFrame()
+        
+        df['Tmin(C)'] = dfwater['MIN_TEMPERATURE']
+        df['Tmax(C)'] = dfwater['MAX_TEMPERATURE']
+        df['Prcp(mm)'] = dfwater['TOTAL_PRECIPITATION']
+        df['Day'] = dfwater['LOCAL_DAY']
+        df['Month'] = dfwater['LOCAL_MONTH']
+        df['Year'] = dfwater['LOCAL_YEAR']
+        
+        dfeto = pd.DataFrame()
+        dfeto['T_mean'] = dfwater['MEAN_TEMPERATURE']
+        dfeto['T_min'] = dfwater['MIN_TEMPERATURE']
+        dfeto['T_max'] = dfwater['MAX_TEMPERATURE']
+        
+        
+        et1 = ETo()
 
+        z_msl = 70
+        # ~ lat = 43.6
+        # ~ lon = -66
+        TZ_lon = 0
+        freq = 'D'
+        et1.param_est(dfeto, freq, z_msl, self.lat, self.lon, TZ_lon)
+
+        # ~ print(et1.ts_param.head())
+        df['ET0'] = et1.eto_fao()
+        df = df[['Day', 'Month' , 'Year' , 'Tmin(C)' , 'Tmax(C)' , 'Prcp(mm)' , 'ET0' ]]
+
+        print(df)
+        
 
     def get_daily_data_for_year(self, year_start , year_end ) :
+    
         start = datetime(year_start, 1, 1, 0, 0, 0, 0) 
         end = datetime(year_end+1, 1, 1, 0, 0, 0, 0) 
         dfeto = pd.DataFrame()
@@ -150,7 +187,7 @@ class climate:
         df = df.interpolate()
 
         # ~ print(dfwater)
-        df.to_csv("climate_ofp.csv")
+        #df.to_csv("climate_ofp.csv")
         
         # ~ df.plot()
         # ~ plt.show()
@@ -168,5 +205,7 @@ c.lat = 43.9
 c.load_solcast_all()
 c.reformat_solcast_to_daily_add_ET0()
 c.load_daily_data()
-c.get_daily_data_for_year(2007 , 2019)
-
+c.get_daily_data_for_year_no_solcast(2007, 2008)
+dftemp = c.get_daily_data_for_year(2007 , 2008)
+print(dftemp)
+#dftemp.to_csv("climate_ofp.csv")
