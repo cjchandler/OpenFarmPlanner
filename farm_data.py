@@ -39,11 +39,54 @@ class weather:
         #weather df format:[ 'Day', 'Month' , 'Year' , 'Tmin(C)' , 'Tmax(C)' , 'Prcp(mm)' , 'ET0']
         
     def load_observed_weather(self):
-        self.df_observed = pd.read_csv() 
+        self.df_observed = pd.read_csv('./localWeatherData/climate_ofp.csv') 
+        self.df_observed['Datetime'] = pd.to_datetime(self.df_observed['Datetime'])
+        self.df_observed = self.df_observed.set_index('Datetime') 
         
-    def fill_with_prediction_to( self, end_date_str):
+    def fill_with_prediction( self, ndays):
         #look at the observed weather and guess at the future weather
+        last_datetime = datetime.datetime.fromtimestamp( self.last_observed_time)
+        self.df_observed = self.df_observed.loc[:last_datetime]
         
+        print(self.df_observed)
+
+       
+        
+        #make a range of dates into the future 
+        datelist = pd.date_range(last_datetime, periods=ndays)
+        print(datelist)
+        
+        listdeltas= []
+        for a in range( 1 , 11):
+            listdeltas.append( pd.Timedelta(days=a*365) )
+        
+        df = pd.DataFrame(columns=self.df_observed.columns.values, index=datelist)
+        
+        for d in datelist:
+            Tmin = []
+            Tmax = []
+            ET0 = []
+            prcp =[]
+            #look at the past 10 years on this date: 
+            #make a list of the rows we get: 
+            rowlist = []
+            for bdelta in listdeltas:
+                
+                ET0.append (self.df_observed['ET0'].loc[d - bdelta])
+                prcp.append (self.df_observed['Prcp(mm)'].loc[d - bdelta])
+                Tmax.append (self.df_observed['Tmax(C)'].loc[d - bdelta])
+                Tmin.append (self.df_observed['Tmin(C)'].loc[d - bdelta])
+            # ~ Datetime,Day,Month,Year,Tmin(C),Tmax(C),Prcp(mm),ET0
+            
+            df.loc[d] = pd.Series({'Day':d.day, 'Month':d.month, 'Year':d.year, 'Tmin(C)':np.mean(Tmin) , 'Tmax(C)':np.mean(Tmax), 'Prcp(mm)':np.mean(prcp) , 'ET0':np.mean(ET0) })
+            
+            # ~ print(np.mean(ET0))
+    
+        dfout = pd.concat( [self.df_observed, df])
+        print(dfout)
+        idstr = str(self.df_observed.index[-1].day) + '-' +str(self.df_observed.index[-1].month) + '-' + str(self.df_observed.index[-1].year)
+        dfout.to_csv('predicted_' + idstr+ '_climate_ofp.csv')
+
 
 class soil_plot:
     def __init__(self):
@@ -87,7 +130,7 @@ class crop_plan:
 
     def set_event_times(self , planting_date ):
         for e in self.event_list:
-            if e.details['days after planting'] == 0 or e.details['growing degree days after planting'] == 0
+            if e.details['days after planting'] == 0 or e.details['growing degree days after planting'] == 0:
                 #this is the planting date. 
                 e.computer_details['planned_timestamp'] = date_string_to_timestamp(planting_date)
             #if there are any fixed times, we can do those too: 
@@ -160,7 +203,7 @@ class crop_event:
 
 CE = crop_event()
 CE.save_as_csv("my_test_event.csv")
-CE.load_from_csv("plant_lettuce_event.csv")
+CE.load_from_csv("./lettuce_event_templates/plant_lettuce_event.csv")
  
 
 # Define starting point.
@@ -200,4 +243,12 @@ post_harvesting.load_from_csv( "./lettuce_event_templates/post_harvest_lettuce_e
 
 lettuce_plan.event_list = [ soil_prep , planting , harvesting , post_harvesting] 
 #so these are all the events, but they don't have any times associated with them 
+
+#now I load the weather so I can work on time and simulations 
+W = weather()
+dt = datetime.datetime(2024,3,25)
+W.last_observed_time = dt.timestamp() 
+W.load_observed_weather()
+        
+W.fill_with_prediction(360)
 
