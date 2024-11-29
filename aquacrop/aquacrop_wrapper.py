@@ -63,6 +63,9 @@ def make_sim_setup_files( location_tag , path, sim_datetime_start ,sim_datetime_
 
     sim_datetime_year_jan1  = datetime(sim_datetime_start.year, 1, 1, 0, 0, 0, 0)
     df_aquain = df_aquain.loc[sim_datetime_year_jan1:]
+    print(df_aquain) 
+    quit()
+    
     year_s = sim_datetime_start.year
     month_s = sim_datetime_start.month
     day_s = sim_datetime_start.day
