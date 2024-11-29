@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import time
 import datetime
-
+from aquacrop import aquacrop_wrapper
 
 
 
@@ -37,6 +37,7 @@ class weather:
         self.df_daily = pd.DataFrame() #this is observed and forcast weather all in a lump so we can run the crop model 
         self.df_observed = pd.DataFrame() #real weather as observed
         #weather df format:[ 'Day', 'Month' , 'Year' , 'Tmin(C)' , 'Tmax(C)' , 'Prcp(mm)' , 'ET0']
+        self.df_predict = pd.DataFrame()
         
     def load_observed_weather(self):
         self.df_observed = pd.read_csv('./localWeatherData/climate_ofp.csv') 
@@ -86,6 +87,7 @@ class weather:
         print(dfout)
         idstr = str(self.df_observed.index[-1].day) + '-' +str(self.df_observed.index[-1].month) + '-' + str(self.df_observed.index[-1].year)
         dfout.to_csv('predicted_' + idstr+ '_climate_ofp.csv')
+        self.df_predict = dfout
 
 
 class soil_plot:
@@ -107,6 +109,8 @@ class crop_plan:
         self.event_list = [] 
         self.details = {}
         self.details['cultivar'] = " " 
+        self.details['cropfile.CRO'] = "saladbowl3.CRO" 
+        self.details['irrigation.IRR'] = "(NONE)" 
         self.details[''] = " " 
     
          
@@ -128,7 +132,7 @@ class crop_plan:
             #weeding
             #harvesting 
 
-    def set_event_times(self , planting_date ):
+    def set_event_times(self , planting_date , df_predict):
         for e in self.event_list:
             if e.details['days after planting'] == 0 or e.details['growing degree days after planting'] == 0:
                 #this is the planting date. 
@@ -138,7 +142,12 @@ class crop_plan:
                 e.computer_details['planned_timestamp'] = date_string_to_timestamp(planting_date) + e.details['days after planting']*60*60*24
                 
         #ok, now we we need to load real + projected weather so we can fill in the times for the gdd dependent events
-
+        #1 run a simulation of the crop 
+        df_sim_output = aquacrop_wrapper.simAquaCrop( 'yarmouth' , './aquacrop' , planting_date , df_predict.index[-1] ,  df_predict , 0 , self.details['cropfile.CRO'] , self.details['irrigation.IRR'])
+        
+        #2 look at the results and make a gdd col in the df_predict
+        
+        #3 look through the df_predict and find closest date for the gdd events 
 
         
 class crop_event:
@@ -252,3 +261,6 @@ W.load_observed_weather()
         
 W.fill_with_prediction(360)
 
+
+#back to crop plan 
+lettuce_plan.set_event_times( datetime.datetime(2024,3,25) , W.df_predict)
