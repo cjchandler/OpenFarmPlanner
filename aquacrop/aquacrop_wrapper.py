@@ -250,7 +250,8 @@ def simAquaCrop( location_tag, path , start_date , stop_date ,  df , minimum_har
     
     
     
-    
+    dfout.to_csv(path+"/PRMdayout.csv")
+
     # ~ print("dfout" )
     # ~ print( dfout)
     # ~ dfout = dfout.iloc[1:, :] #drop row with units 
@@ -274,7 +275,6 @@ def simAquaCrop( location_tag, path , start_date , stop_date ,  df , minimum_har
     ndays = dfout["DAP"].loc[cropendindex]
     cropstartindex = dfout.index[0]
     
-    dfout.to_csv("PRMdayout.csv")
 
     # ~ print(cropstartindex)
     
