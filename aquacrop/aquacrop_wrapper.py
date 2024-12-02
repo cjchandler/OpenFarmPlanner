@@ -63,8 +63,7 @@ def make_sim_setup_files( location_tag , path, sim_datetime_start ,sim_datetime_
 
     sim_datetime_year_jan1  = datetime(sim_datetime_start.year, 1, 1, 0, 0, 0, 0)
     df_aquain = df_aquain.loc[sim_datetime_year_jan1:]
-    print(df_aquain) 
-    quit()
+    
     
     year_s = sim_datetime_start.year
     month_s = sim_datetime_start.month
@@ -250,6 +249,13 @@ def simAquaCrop( location_tag, path , start_date , stop_date ,  df , minimum_har
 
 
     dfout = pd.read_csv( path+"/OUTP/" + location_tag+ "PRMday.OUT", skiprows = 5, names= daily_header, sep="\\s+"  , index_col=None )
+    
+    dfout['dateobject'] = pd.to_datetime(dict(year=df.Year, month=df.Month, day=df.Day))
+    # ~ dfout['dateobject'] = dfout['dateobject'].to_datetime()
+    return dfout
+    
+    
+    
     
     
     

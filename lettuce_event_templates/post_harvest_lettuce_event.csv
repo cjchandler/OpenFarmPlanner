@@ -1,3 +1,3 @@
-,event_name,human_instructions,time_estimate_min,time_taken_min,soil_plot_list,tools used,consumables_used
-0,post harvest ,"put lettuce in water tub with blower for agitation. Remove after 15 min, put on rack to dry for 15 min. Place in plastic bags for sale, add price stickers",45,-1,,washing tub with blown air agitator,plastic bags
-,,,,,,drying rack ,price stickers
+,event_name,human_instructions,time_estimate_min,time_taken_min,soil_plot_list,tools used,consumables_used,growing degree days after planting,is harvest event
+0,post harvest ,"put lettuce in water tub with blower for agitation. Remove after 15 min, put on rack to dry for 15 min. Place in plastic bags for sale, add price stickers",45,-1,,washing tub with blown air agitator,plastic bags,h2,1
+,,,,,,drying rack ,price stickers,,

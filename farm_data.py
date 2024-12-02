@@ -3,14 +3,14 @@ import geopy.distance
 import numpy as np
 import pandas as pd
 import time
-import datetime
+from datetime import datetime, timedelta
 from aquacrop import aquacrop_wrapper
-
+import pprint
 
 
 def date_string_to_timestamp( datestring):
     l = datestring.split('-')
-    dt= datetime.datetime(int(l[2]), int(l[1]) , int(l[0]) )
+    dt= datetime(int(l[2]), int(l[1]) , int(l[0]) )
     timestamp = (dt - datetime(1970, 1, 1)) / timedelta(seconds=1)
     return timestamp
 
@@ -46,7 +46,7 @@ class weather:
         
     def fill_with_prediction( self, ndays):
         #look at the observed weather and guess at the future weather
-        last_datetime = datetime.datetime.fromtimestamp( self.last_observed_time)
+        last_datetime = datetime.fromtimestamp( self.last_observed_time)
         self.df_observed = self.df_observed.loc[:last_datetime]
         
         print(self.df_observed)
@@ -109,9 +109,12 @@ class crop_plan:
         self.event_list = [] 
         self.details = {}
         self.details['cultivar'] = " " 
+        self.details['location'] = "placename" #no spaces or special characters here, used as a file name part
         self.details['cropfile.CRO'] = "saladbowl3.CRO" 
         self.details['irrigation.IRR'] = "(NONE)" 
+        self.details['minimum_harvest_temperature'] = 0
         self.details[''] = " " 
+        self.simdf = pd.DataFrame()
     
          
     def make_all_events(self):
@@ -122,32 +125,95 @@ class crop_plan:
         n = input()
         self.details['cultivar'] = lower(n) 
 
-        #TODO look in the archives, have we done this before? 
-        previous_same_crops = False 
-        # ~ if(previous_same_crops == False):
-            #add some basic events:
-            #soil prep 
-            
-            #planting 
-            #weeding
-            #harvesting 
+        
 
-    def set_event_times(self , planting_date , df_predict):
+    def set_event_times(self , planting_datetime , df_predict):
+        
+        df_predict['datetime'] = pd.to_datetime(df_predict[['Year', 'Month', 'Day']]) 
+        self.simdf = aquacrop_wrapper.simAquaCrop(  self.details['location'], "./aquacrop" , planting_datetime , df_predict['datetime'].iloc[-1] ,  df_predict , self.details['minimum_harvest_temperature'] , self.details['cropfile.CRO'] , self.details['irrigation.IRR']) 
+         # ~ = pd.read_csv( "./aquacrop/PRMdayout.csv" ) 
+        
         for e in self.event_list:
-            if e.details['days after planting'] == 0 or e.details['growing degree days after planting'] == 0:
-                #this is the planting date. 
-                e.computer_details['planned_timestamp'] = date_string_to_timestamp(planting_date)
-            #if there are any fixed times, we can do those too: 
-            elif e.details['days after planting'] != 999999 and e.details['days after planting'] != '':
-                e.computer_details['planned_timestamp'] = date_string_to_timestamp(planting_date) + e.details['days after planting']*60*60*24
+            realdays = -999 
+            realtiming = False
+            gddays = -999 
+            gddtiming = False
+            try: 
+                realdays = float(e.details['days after planting'])
+                realtiming = True
+            except:
+                realtiming = False
+            
+            try: 
+                gddays = float(e.details['growing degree days after planting'])
+                gddtiming = True
+            except:
+                gddtiming = False
+            
+           
                 
-        #ok, now we we need to load real + projected weather so we can fill in the times for the gdd dependent events
-        #1 run a simulation of the crop 
-        df_sim_output = aquacrop_wrapper.simAquaCrop( 'yarmouth' , './aquacrop' , planting_date , df_predict.index[-1] ,  df_predict , 0 , self.details['cropfile.CRO'] , self.details['irrigation.IRR'])
+            # ~ print(e.details['days after planting'] , e.details['growing degree days after planting'])
+            # ~ print(realtiming , str(e.details['days after planting']).isdigit(), gddtiming)
+            
+            ##Make sue this above thing about timing is working right first. 
+            
+            # ~ #planting event? 
+            # ~ if realtiming == True or gddtiming == True: 
+                # ~ if float(str(e.details['days after planting'])) == 0 or e.details['growing degree days after planting'] == 0:
+                    # ~ #this is the planting date. 
+                    # ~ e.computer_details['planned_timestamp'] = datetime.timestamp(planting_datetime)
+                     # ~ #don't worry about any other time for this event, you're done
+                 
+            
+            #if it a fixed time? 
+            if realtiming == True :
+                print('fixed time')
+                e.computer_details['planned_timestamp'] = datetime.timestamp(planting_datetime  + timedelta(days = int(e.details['days after planting'])))
+                
+            
+            #is it a harvesting step?
+            harvest_step = -1
+            try:
+                harvest_step = int(e.details['is harvesting step'])
+                
+            except: 
+                harvest_step = -1 
+                
+            if harvest_step >= 0:
+                for i, stage in enumerate(self.simdf['Stage']):
+                    if int(stage) == 0:
+                        e.computer_details['planned_timestamp'] = datetime.timestamp( df_predict['datetime'].loc[i])
+                        break
+                        
+                
+                
+            #is it tied to a specific gdd?
+            gdd = -1
+            try: 
+                gdd = float( e.details['growing degree days after planting'])
+            except:
+                gdd = -1
+            if gdd >= 0 :
+                print("gdd event!!!" , gdd , self.simdf['GD'])
+                gddsum = 0
+                # ~ if int(e.details['growing degree days after planting']) >=0 
+                for i, g in enumerate(self.simdf['GD']):
+                    gddsum += g
+                    if gddsum >= gdd:
+                        planned_datetime  = self.simdf['dateobject'].loc[i]
+                        e.computer_details['planned_timestamp']  = datetime.timestamp( planned_datetime )
+                        break
+                
+        #sort events list
         
-        #2 look at the results and make a gdd col in the df_predict
-        
-        #3 look through the df_predict and find closest date for the gdd events 
+        self.event_list.sort(key=lambda x: x.computer_details['planned_timestamp'], reverse=False)
+
+                
+    def print_plan(self):
+        for e in self.event_list:
+            e.pretty_print()
+            
+           
 
         
 class crop_event:
@@ -160,15 +226,24 @@ class crop_event:
         self.details['soil_plot_ids'] =  []
         self.details['tools used'] = ["boots", "coat"]
         self.details['consumables_used'] = ["string"]
-        self.details['days after planting'] = 999999
-        self.details['growing degree days after planting'] = 999999
+        self.details['days after planting'] = 'q'
+        self.details['growing degree days after planting'] = 'q'
+        self.details['is harvesting step'] = -1 #-1 or '' is before harvesting. 0 is first harvest step, 1 is next etc  
         
         self.computer_details = {} #this is stuff that the farmer should never have to adjust manually in .csv 
-        self.computer_details['planned_timestamp'] = ' ' 
+        self.computer_details['planned_timestamp'] = 0 
         self.computer_details['actual_timestamp_start'] = ' ' 
         self.computer_details['actual_timestamp_end'] = ' ' 
  
-      
+    
+    def pretty_print(self):
+        planneddt = datetime.fromtimestamp(self.computer_details['planned_timestamp'])
+        print( "----" + self.details['event_name'] + "----  planned for " + planneddt.strftime('%d-%m-%Y') )
+        for i, (key, val) in enumerate(self.details.items()):
+            print("    " + key  + "  :   " + str(val) )
+            
+        
+    
     def load_from_csv(self , filename ):
         df = pd.read_csv(filename) 
         keys = df.columns.to_list()
@@ -181,6 +256,8 @@ class crop_event:
             l = [x for x in col_values if str(x) != 'nan']
             # ~ print(l)
             self.details[val] = l
+            if len(l) ==1 :
+                self.details[val] = l[0]
         
         print(self.details)
        
@@ -226,7 +303,6 @@ d = geopy.distance.distance(kilometers = 0.001)
 pN =   d.destination(point=start, bearing=0)
 pNE =   d.destination(point=pN, bearing=90)
 pNES =   d.destination(point=pNE, bearing=180)
-
 s1 = soil_plot()
 s1.details['corner_gps_points'] = [ start , pN , pNE , pNES ] 
 
@@ -250,12 +326,12 @@ harvesting.load_from_csv( "./lettuce_event_templates/harvest_lettuce_event.csv")
 post_harvesting = crop_event()
 post_harvesting.load_from_csv( "./lettuce_event_templates/post_harvest_lettuce_event.csv")
 
-lettuce_plan.event_list = [ soil_prep , planting , harvesting , post_harvesting] 
+lettuce_plan.event_list = [ soil_prep , planting , weeding, harvesting , post_harvesting] 
 #so these are all the events, but they don't have any times associated with them 
 
 #now I load the weather so I can work on time and simulations 
 W = weather()
-dt = datetime.datetime(2024,3,25)
+dt = datetime(2024,3,25)
 W.last_observed_time = dt.timestamp() 
 W.load_observed_weather()
         
@@ -263,4 +339,6 @@ W.fill_with_prediction(360)
 
 
 #back to crop plan 
-lettuce_plan.set_event_times( datetime.datetime(2024,3,25) , W.df_predict)
+lettuce_plan.set_event_times( dt, W.df_predict)
+
+lettuce_plan.print_plan()
