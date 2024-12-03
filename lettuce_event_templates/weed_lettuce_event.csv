@@ -1,3 +1,3 @@
-,event_name,human_instructions,time_estimate_min,time_taken_min,soil_plot_list,tools used,consumables_used,growing degree days after planting
-0,weeding,hoe between rows,30,-1,,hoe,,200
+,event_name,human_instructions,time_estimate_min_per_m2,time_taken_min,soil_plot_list,tools used,consumables_used,growing degree days after planting
+0,weeding,hoe between rows,4,-1,,hoe,,200
 ,,,,,,boots,,

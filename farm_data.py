@@ -93,6 +93,8 @@ class weather:
         print(dfout)
         idstr = str(self.df_observed.index[-1].day) + '-' +str(self.df_observed.index[-1].month) + '-' + str(self.df_observed.index[-1].year)
         dfout.to_csv('predicted_' + idstr+ '_climate_ofp.csv')
+        dfout['datetime'] = pd.to_datetime(dfout[['Year', 'Month', 'Day']]) 
+
         self.df_predict = dfout
 
 
@@ -101,12 +103,64 @@ class farm_data:
     def __init__(self):
         self.farm_address = "South Ohio, NS"
         self.farm_name = "TestFarm" 
-        self.soil_plot_list = []
+        self.soil_plot_dict = {} #id is key, value is soil_plot class instance
         self.active_crop_plan_list = []
+        self.past_crop_plan_list = []
         self.weather = weather()
         self.weather.load_observed_weather()
         
+    
+    def estimate_labour( self , proposed_crop_plan_list ):
+        #look at the crop plans for this cultivar in proposed
+        #look at the crop plans for this cultivar in past
         
+        #if there are events in past crop plans with the same description, worker id as the proposed ones,
+        #make a list of mean_past_events where each event has a mean time scaled by area
+        if ( len(self.past_crop_plan_list) > 0 ): 
+            mean_past_events = [ self.past_crop_plan_list[0].event_list[0] ]
+            for past_crop_plan in self.past_crop_plan_list:
+                for pe in past_crop_plan:
+                #check if pe is in mean_past_events. 
+                    for me in mean_past_events:
+                        if pe.compare_events(me) == True:
+                            #update the mean, add the area aka soil plot ids and add and time_taken_min
+                            me.details['time_taken_min'] = me.details['time_taken_min'] + pe.details['time_taken_min'] 
+                            me.details['soil_plot_ids'] = me.details['soil_plot_ids']  + pe.details['soil_plot_ids'] 
+                        else:
+                            mean_past_events.append(pe)
+
+        #now look at the proposed events. If there are events with same description on the same day, join them (add area id lists together)
+        joined_proposed_events = [ proposed_crop_plan_list[0].event_list[0] ]#start with one event in there
+        simultaneous_window  = 60*60*24
+        for proposed_crop_plan  in  proposed_crop_plan_list:                
+            for i, new_e in enumerate(proposed_crop_plan.event_list):
+                #check if new_e is already in joined_proposed_events
+                add_new_e = True 
+                for joined_e in joined_proposed_events:
+                    if new_e.compare_events( joined_e ) == True:
+                        if abs(new_e.computer_details['planned_timestamp'] - joined_e.computer_details['planned_timestamp']) <= simultaneous_window  :
+                            joined_e.details['time_taken_min'] = joined_e.details['time_taken_min'] + new_e.details['time_taken_min'] 
+                            joined_e.details['soil_plot_ids'] = joined_e.details['soil_plot_ids']  + new_e.details['soil_plot_ids']
+                            add_new_e = False
+                            print("merged")
+                if add_new_e: 
+                    joined_proposed_events.append(new_e)
+        
+        #now make a best time 'time_estimate_generated' for each of these events using either mean_past_events or calcualtion from human input
+        print( len(joined_proposed_events) ) 
+        quit()
+        
+        total_time_min = 0 
+        switching_min = 2 #time cost to switch jobs  
+        for e in joined_proposed_events:
+            area = 0 
+            for sid in e.details['soil_plot_ids']:
+                area+= self.soil_plot_dict[ sid ].details['area_m2']
+        
+            e.details['time_estimate_generated']= switching_min + e.details['time_estimate_min_per_m2']*area
+            total_time_min += e.details['time_estimate_generated']
+        
+        return total_time_min , joined_proposed_events
         
         
         #archive data? 
@@ -154,7 +208,6 @@ class crop_plan:
 
     def set_event_times(self , planting_datetime , df_predict):
         
-        df_predict['datetime'] = pd.to_datetime(df_predict[['Year', 'Month', 'Day']]) 
         self.simdf = aquacrop_wrapper.simAquaCrop(  self.details['location'], "./aquacrop" , planting_datetime , df_predict['datetime'].iloc[-1] ,  df_predict , self.details['minimum_harvest_temperature'] , self.details['cropfile.CRO'] , self.details['irrigation.IRR']) 
          # ~ = pd.read_csv( "./aquacrop/PRMdayout.csv" ) 
         
@@ -248,8 +301,10 @@ class crop_event:
         self.details = {}
         self.details['event_name'] = "name of event"
         self.details['human_instructions'] = " walk to farm "
-        self.details['time_estimate_min'] = 0
+        self.details['time_estimate_min_per_m2'] = 0
+        self.details['time_estimate_generated'] = 0
         self.details['time_taken_min'] = -1
+        self.details['worker_id'] = ''
         self.details['soil_plot_ids'] =  []
         self.details['tools used'] = ["boots", "coat"]
         self.details['consumables_used'] = ["string"]
@@ -262,6 +317,15 @@ class crop_event:
         self.computer_details['actual_timestamp_start'] = ' ' 
         self.computer_details['actual_timestamp_end'] = ' ' 
  
+    
+    def compare_events( self , eB ):
+
+        if self.details['human_instructions'] != eB.details['human_instructions']: 
+            return False
+        if self.details['worker_id'] != eB.details['worker_id']: 
+            return False
+        
+        return True
     
     def pretty_print(self):
         planneddt = datetime.fromtimestamp(self.computer_details['planned_timestamp'])
@@ -332,28 +396,42 @@ pNE =   d.destination(point=pN, bearing=90)
 pNES =   d.destination(point=pNE, bearing=180)
 s1 = soil_plot()
 s1.details['corner_gps_points'] = [ start , pN , pNE , pNES ] 
-
+s1.details['area_m2'] = 1
 CE.details["soil_plot_list"] = [s1.details["id"] ]
 
 lettuce_plan = crop_plan()
+lettuce_plan2= crop_plan()
+
 lettuce_plan.details['cultivar'] = 'salad bowl' 
+lettuce_plan2.details['cultivar'] = 'salad bowl' 
 
 soil_prep = crop_event()
+soil_prep2 = crop_event()
 soil_prep.load_from_csv( "./lettuce_event_templates/prepare_soil_tarps_event.csv")
+soil_prep2.load_from_csv( "./lettuce_event_templates/prepare_soil_tarps_event.csv")
 
 planting = crop_event()
+planting2 = crop_event()
 planting.load_from_csv( "./lettuce_event_templates/plant_lettuce_event.csv")
+planting2.load_from_csv( "./lettuce_event_templates/plant_lettuce_event.csv")
 
 weeding = crop_event()
+weeding2 = crop_event()
 weeding.load_from_csv( "./lettuce_event_templates/weed_lettuce_event.csv")
+weeding2.load_from_csv( "./lettuce_event_templates/weed_lettuce_event.csv")
 
 harvesting = crop_event()
+harvesting2 = crop_event()
 harvesting.load_from_csv( "./lettuce_event_templates/harvest_lettuce_event.csv")
+harvesting2.load_from_csv( "./lettuce_event_templates/harvest_lettuce_event.csv")
 
 post_harvesting = crop_event()
+post_harvesting2 = crop_event()
 post_harvesting.load_from_csv( "./lettuce_event_templates/post_harvest_lettuce_event.csv")
+post_harvesting2.load_from_csv( "./lettuce_event_templates/post_harvest_lettuce_event.csv")
 
 lettuce_plan.event_list = [ soil_prep , planting , weeding, harvesting , post_harvesting] 
+lettuce_plan2.event_list = [ soil_prep2 , planting2 , weeding2, harvesting2 , post_harvesting2] 
 #so these are all the events, but they don't have any times associated with them 
 
 #now I load the weather so I can work on time and simulations 
@@ -367,15 +445,35 @@ W.fill_with_prediction(360)
 
 #back to crop plan 
 lettuce_plan.set_event_times( dt, W.df_predict)
-
 lettuce_plan.print_plan()
+print(";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
+dt2 = datetime(2024,5,30)
+lettuce_plan2.set_event_times( dt2, W.df_predict)
+
+print(lettuce_plan.event_list[0].computer_details['planned_timestamp'])
+print(lettuce_plan2.event_list[0].computer_details['planned_timestamp'])
+
 
 
 ###setup the whole farm 
 Farm = farm_data()
-Farm.soil_plot_list.append(s1)
+Farm.soil_plot_dict['id0']=(s1)
 Farm.active_crop_plan_list.append(lettuce_plan)
+Farm.active_crop_plan_list.append(lettuce_plan2)
 dump_farm_data(Farm)
 
 Farm = load_farm_data(Farm)
-Farm.active_crop_plan_list[0].print_plan()
+print()
+print()
+print()
+print()
+print()
+lettuce_plan.print_plan()
+lettuce_plan2.print_plan()
+
+
+t, l =Farm.estimate_labour( [lettuce_plan, lettuce_plan2 ])
+print(t)
+lettuce_plan_X = crop_plan()
+lettuce_plan_X.event_list = l 
+lettuce_plan_X.print_plan()

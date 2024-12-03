@@ -1,3 +1,3 @@
-,event_name,human_instructions,time_estimate_min,time_taken_min,soil_plot_ids,tools used,consumables_used,days after planting,growing degree days after planting,is harvest step
-0,name of event, walk to farm ,0,-1,,boots,string,q,q,-1
-1,,,,,,coat,,,,
+,event_name,human_instructions,time_estimate_min_per_m2,time_estimate_generated,time_taken_min,worker_id,soil_plot_ids,tools used,consumables_used,days after planting,growing degree days after planting,is harvest step
+0,name of event, walk to farm ,0,0,-1,,,boots,string,q,q,-1
+1,,,,,,,,coat,,,,

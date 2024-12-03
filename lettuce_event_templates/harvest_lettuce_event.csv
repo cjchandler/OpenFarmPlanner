@@ -1,3 +1,3 @@
-,event_name,human_instructions,time_estimate_min,time_taken_min,soil_plot_list,tools used,consumables_used,growing degree days after planting,is harvest step
-0,harvest,cut head in checker board pattern to leave space for the others to grow bigger. Use a a knife on main root under the leaves,30,-1,,knife,,,0
+,event_name,human_instructions,time_estimate_min_per_m2,time_taken_min,soil_plot_list,tools used,consumables_used,growing degree days after planting,is harvest step
+0,harvest,cut head in checker board pattern to leave space for the others to grow bigger. Use a a knife on main root under the leaves,5,-1,,knife,,,0
 ,,,,,,basket,,,
