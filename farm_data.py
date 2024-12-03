@@ -6,6 +6,22 @@ import time
 from datetime import datetime, timedelta
 from aquacrop import aquacrop_wrapper
 import pprint
+import pickle
+
+def dump_farm_data( f):
+    dtn = datetime.now()
+    filename = f.farm_name + "_farm_state.pickle"
+    with open(filename, 'wb') as handle:
+        pickle.dump(f, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+def load_farm_data(f):
+    dtn = datetime.now()
+    filename = f.farm_name + "_farm_state.pickle"
+    with open(filename, 'rb') as handle:
+        b = pickle.load(handle)
+    return b
+
+
 
 
 def date_string_to_timestamp( datestring):
@@ -18,17 +34,7 @@ def timestamp_to_date( ts):
     dt_object = datetime.fromtimestamp(timestamp)
     return str(dt_object.day) + '-' + str(dt_object.month) + '-' + str(dt_object.year)
 
-# farm planner farm class 
-class farm_data:
-    def __init__(self):
-        self.farm_address = "South Ohio, NS"
-        self.farm_name = "TestFarm" 
-        self.soil_plot_list = []
-        self.active_crop_plan_list = []
-        #archive data? 
-            #we will need a way to get this all together from file when we need it 
-            
-        #economic information, what are the seaonal demand curves looking like for each crop?
+
     
 
 class weather:
@@ -90,6 +96,24 @@ class weather:
         self.df_predict = dfout
 
 
+# farm planner farm class 
+class farm_data:
+    def __init__(self):
+        self.farm_address = "South Ohio, NS"
+        self.farm_name = "TestFarm" 
+        self.soil_plot_list = []
+        self.active_crop_plan_list = []
+        self.weather = weather()
+        self.weather.load_observed_weather()
+        
+        
+        
+        
+        #archive data? 
+            #we will need a way to get this all together from file when we need it 
+            
+        #economic information, what are the seaonal demand curves looking like for each crop?
+
 class soil_plot:
     def __init__(self):
         self.details  = {}
@@ -109,6 +133,7 @@ class crop_plan:
         self.event_list = [] 
         self.details = {}
         self.details['cultivar'] = " " 
+        self.details['soil_plot_ids'] = [] #each soil plot has an area, so this is how to figure out how much we are planting
         self.details['location'] = "placename" #no spaces or special characters here, used as a file name part
         self.details['cropfile.CRO'] = "saladbowl3.CRO" 
         self.details['irrigation.IRR'] = "(NONE)" 
@@ -344,3 +369,13 @@ W.fill_with_prediction(360)
 lettuce_plan.set_event_times( dt, W.df_predict)
 
 lettuce_plan.print_plan()
+
+
+###setup the whole farm 
+Farm = farm_data()
+Farm.soil_plot_list.append(s1)
+Farm.active_crop_plan_list.append(lettuce_plan)
+dump_farm_data(Farm)
+
+Farm = load_farm_data(Farm)
+Farm.active_crop_plan_list[0].print_plan()
