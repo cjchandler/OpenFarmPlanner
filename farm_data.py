@@ -147,8 +147,8 @@ class farm_data:
                     joined_proposed_events.append(new_e)
         
         #now make a best time 'time_estimate_generated' for each of these events using either mean_past_events or calcualtion from human input
-        print( len(joined_proposed_events) ) 
-        quit()
+        # ~ print( len(joined_proposed_events) ) 
+        # ~ joined_proposed_events[0].pretty_print() 
         
         total_time_min = 0 
         switching_min = 2 #time cost to switch jobs  
@@ -431,7 +431,12 @@ post_harvesting.load_from_csv( "./lettuce_event_templates/post_harvest_lettuce_e
 post_harvesting2.load_from_csv( "./lettuce_event_templates/post_harvest_lettuce_event.csv")
 
 lettuce_plan.event_list = [ soil_prep , planting , weeding, harvesting , post_harvesting] 
+for e in lettuce_plan.event_list:
+    e.details['soil_plot_ids'] = ['id0' ]
+
 lettuce_plan2.event_list = [ soil_prep2 , planting2 , weeding2, harvesting2 , post_harvesting2] 
+for e in lettuce_plan2.event_list:
+    e.details['soil_plot_ids'] = ['id0'] 
 #so these are all the events, but they don't have any times associated with them 
 
 #now I load the weather so I can work on time and simulations 
@@ -474,6 +479,6 @@ lettuce_plan2.print_plan()
 
 t, l =Farm.estimate_labour( [lettuce_plan, lettuce_plan2 ])
 print(t)
-lettuce_plan_X = crop_plan()
-lettuce_plan_X.event_list = l 
-lettuce_plan_X.print_plan()
+# ~ lettuce_plan_X = crop_plan()
+# ~ lettuce_plan_X.event_list = l 
+# ~ lettuce_plan_X.print_plan()
