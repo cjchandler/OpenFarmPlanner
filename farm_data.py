@@ -173,8 +173,9 @@ class crop_plan:
             
             #is it a harvesting step?
             harvest_step = -1
+            print(e.details['is harvest step'])
             try:
-                harvest_step = int(e.details['is harvesting step'])
+                harvest_step = int(e.details['is harvest step'])
                 
             except: 
                 harvest_step = -1 
@@ -182,7 +183,8 @@ class crop_plan:
             if harvest_step >= 0:
                 for i, stage in enumerate(self.simdf['Stage']):
                     if int(stage) == 0:
-                        e.computer_details['planned_timestamp'] = datetime.timestamp( df_predict['datetime'].loc[i])
+                        planned_datetime  = self.simdf['dateobject'].loc[i]
+                        e.computer_details['planned_timestamp']  = datetime.timestamp( planned_datetime ) + harvest_step
                         break
                         
                 
@@ -228,7 +230,7 @@ class crop_event:
         self.details['consumables_used'] = ["string"]
         self.details['days after planting'] = 'q'
         self.details['growing degree days after planting'] = 'q'
-        self.details['is harvesting step'] = -1 #-1 or '' is before harvesting. 0 is first harvest step, 1 is next etc  
+        self.details['is harvest step'] = -1 #-1 or '' is before harvesting. 0 is first harvest step, 1 is next etc  
         
         self.computer_details = {} #this is stuff that the farmer should never have to adjust manually in .csv 
         self.computer_details['planned_timestamp'] = 0 
