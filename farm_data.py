@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from aquacrop import aquacrop_wrapper
 import pprint
 import pickle
+import glob
 
 def dump_farm_data( f):
     dtn = datetime.now()
@@ -24,15 +25,15 @@ def load_farm_data(f):
 
 
 
-def date_string_to_timestamp( datestring):
-    l = datestring.split('-')
-    dt= datetime(int(l[2]), int(l[1]) , int(l[0]) )
-    timestamp = (dt - datetime(1970, 1, 1)) / timedelta(seconds=1)
-    return timestamp
+# ~ def date_string_to_timestamp( datestring):
+    # ~ l = datestring.split('-')
+    # ~ dt= datetime(int(l[2]), int(l[1]) , int(l[0]) )
+    # ~ timestamp = (dt - datetime(1970, 1, 1)) / timedelta(seconds=1)
+    # ~ return timestamp
 
-def timestamp_to_date( ts):
-    dt_object = datetime.fromtimestamp(timestamp)
-    return str(dt_object.day) + '-' + str(dt_object.month) + '-' + str(dt_object.year)
+# ~ def timestamp_to_date( ts):
+    # ~ dt_object = datetime.fromtimestamp(timestamp)
+    # ~ return str(dt_object.day) + '-' + str(dt_object.month) + '-' + str(dt_object.year)
 
 
     
@@ -98,6 +99,100 @@ class weather:
         self.df_predict = dfout
 
 
+class optimizer:
+    def __init__(self , fd , cultivar, sample_crop_plan):
+        self.cultivar= cultivar
+        self.farm_data = fd
+        self.Yield = np.zeros([2,2])
+        self.demand_kg_per_day = [ 1 , 1]
+        self.yield_kg_per_day = [ 0 , 0]
+        self.dates = [ datetime(1901,1,1) , datetime(1901,1,2) ]
+        self.demand_forcing_intensity = 0.1
+        self.labour_constant_min = 10
+        self.labour_min_per_m2 = 60
+        self.startdate = datetime(1901,1,1)
+        self.sample_crop_plan = sample_crop_plan
+    
+    
+    def make_yield_matrix(self):
+        #populate self.dates
+        self.dates = pd.date_range(start= self.startdate, end=fd.weather.df_predict.index[-1]  , freq='D')
+        
+        #
+         
+        
+    
+    def estimate_labour_for_crop(self  ):
+        crop_plan = self.sample_crop_plan
+        #give a constan time for this crop, and a time per m2 
+        
+        
+        #if there are events in past crop plans with the same description, worker id as the proposed ones,
+        #make a list of mean_past_events where each event has a mean time scaled by area
+        if ( len(self.farm_data.past_crop_plan_list) > 0 ): 
+            self.farm_data.mean_past_events = [ self.past_crop_plan_list[0].event_list[0] ]
+            for past_crop_plan in self.farm_data.past_crop_plan_list:
+                for pe in past_crop_plan:
+                #check if pe is in mean_past_events. 
+                    for me in mean_past_events:
+                        if pe.compare_events(me) == True:
+                            #update the mean, add the area aka soil plot ids and add and time_taken_min
+                            me.details['time_taken_min'] = me.details['time_taken_min'] + pe.details['time_taken_min'] 
+                            me.details['soil_plot_ids'] = me.details['soil_plot_ids']  + pe.details['soil_plot_ids'] 
+                        else:
+                            mean_past_events.append(pe)
+
+        #now look at the proposed events. crop_plan.event_list
+        
+        #now make a best time 'time_estimate_generated' for each of these events using either mean_past_events or calcualtion from human input
+        # ~ print( len(joined_proposed_events) ) 
+        # ~ joined_proposed_events[0].pretty_print() 
+        
+        area_time_min = 0
+        constant_time_min = 0 
+        switching_min = 2 #time cost to switch jobs  
+        for e in crop_plan.event_list:
+            area = 0 
+            for sid in e.details['soil_plot_ids']:
+                area+= self.soil_plot_dict[ sid ].details['area_m2']
+        
+            e.details['time_estimate_generated']= switching_min + e.details['time_estimate_min_per_m2']*area
+            area_time_min += e.details['time_estimate_min_per_m2']
+            constant_time_min += switching_min
+        
+        
+        return  constant_time_min, area_time_min
+        
+    def estimate_labour_for_crop_Matrix(self , area_vector  ):
+        #give a time for this crop area vector 
+        return labour_min
+        
+    def compare_demand_and_yield( self):
+        return
+        
+        
+    def cost_func( self, area_vector):
+        return
+    
+    def optimize_cultivar( self , sample_crop_plan, startdate ):
+        self.startdate = startdate
+        #1 do a bunch of sims for start date until end of predicted weather. start everyday, make a list of start dates and yeilds. don't add when too cold on start date. end early on minimum harvest temperature
+        #1b save those sims df, we'll need them at the end 
+        
+        #2 make a yield matrix
+        
+        #3 make a labour estimate
+        
+        #4 setup cost func 
+        
+        #5 optimize cost func 
+        
+        #6 change the area vector the we optimized into a list of crop plans
+        
+        return
+        
+        
+
 # farm planner farm class 
 class farm_data:
     def __init__(self):
@@ -110,64 +205,10 @@ class farm_data:
         self.weather.load_observed_weather()
         
     
-    def estimate_labour( self , proposed_crop_plan_list ):
-        #look at the crop plans for this cultivar in proposed
-        #look at the crop plans for this cultivar in past
-        
-        #if there are events in past crop plans with the same description, worker id as the proposed ones,
-        #make a list of mean_past_events where each event has a mean time scaled by area
-        if ( len(self.past_crop_plan_list) > 0 ): 
-            mean_past_events = [ self.past_crop_plan_list[0].event_list[0] ]
-            for past_crop_plan in self.past_crop_plan_list:
-                for pe in past_crop_plan:
-                #check if pe is in mean_past_events. 
-                    for me in mean_past_events:
-                        if pe.compare_events(me) == True:
-                            #update the mean, add the area aka soil plot ids and add and time_taken_min
-                            me.details['time_taken_min'] = me.details['time_taken_min'] + pe.details['time_taken_min'] 
-                            me.details['soil_plot_ids'] = me.details['soil_plot_ids']  + pe.details['soil_plot_ids'] 
-                        else:
-                            mean_past_events.append(pe)
-
-        #now look at the proposed events. If there are events with same description on the same day, join them (add area id lists together)
-        joined_proposed_events = [ proposed_crop_plan_list[0].event_list[0] ]#start with one event in there
-        simultaneous_window  = 60*60*24
-        for proposed_crop_plan  in  proposed_crop_plan_list:                
-            for i, new_e in enumerate(proposed_crop_plan.event_list):
-                #check if new_e is already in joined_proposed_events
-                add_new_e = True 
-                for joined_e in joined_proposed_events:
-                    if new_e.compare_events( joined_e ) == True:
-                        if abs(new_e.computer_details['planned_timestamp'] - joined_e.computer_details['planned_timestamp']) <= simultaneous_window  :
-                            joined_e.details['time_taken_min'] = joined_e.details['time_taken_min'] + new_e.details['time_taken_min'] 
-                            joined_e.details['soil_plot_ids'] = joined_e.details['soil_plot_ids']  + new_e.details['soil_plot_ids']
-                            add_new_e = False
-                            print("merged")
-                if add_new_e: 
-                    joined_proposed_events.append(new_e)
-        
-        #now make a best time 'time_estimate_generated' for each of these events using either mean_past_events or calcualtion from human input
-        # ~ print( len(joined_proposed_events) ) 
-        # ~ joined_proposed_events[0].pretty_print() 
-        
-        total_time_min = 0 
-        switching_min = 2 #time cost to switch jobs  
-        for e in joined_proposed_events:
-            area = 0 
-            for sid in e.details['soil_plot_ids']:
-                area+= self.soil_plot_dict[ sid ].details['area_m2']
-        
-            e.details['time_estimate_generated']= switching_min + e.details['time_estimate_min_per_m2']*area
-            total_time_min += e.details['time_estimate_generated']
-        
-        return total_time_min , joined_proposed_events
-        
-        
-        #archive data? 
-            #we will need a way to get this all together from file when we need it 
-            
-        #economic information, what are the seaonal demand curves looking like for each crop?
-
+    
+    
+    
+    
 class soil_plot:
     def __init__(self):
         self.details  = {}
@@ -180,7 +221,18 @@ class soil_plot:
         self.details['current_cultivar'] = "NONE"
         self.details['current_crop_biomass_kg'] = 0
         self.details['canopy_coverage_fraction'] =0 
-           
+    
+    
+class cultivar:
+    def __init__(self):
+        self.event_list = [] 
+        self.name  = ""
+        self.cropfilename = "saladbowl3.CRO" 
+        self.species = ""
+        self.minimum_harvest_temperature =0 
+        self.death_temperature = 0 
+        
+
 
 class crop_plan:
     def __init__(self):
@@ -192,13 +244,15 @@ class crop_plan:
         self.details['cropfile.CRO'] = "saladbowl3.CRO" 
         self.details['irrigation.IRR'] = "(NONE)" 
         self.details['minimum_harvest_temperature'] = 0
-        self.details[''] = " " 
+        self.details['death_temperature'] = 0 #if temeprature goes below this the plant is dead and does not regrow when it gets warmer
+        self.details['cultivar_class'] = cultivar() 
         self.simdf = pd.DataFrame()
     
          
     def make_all_events(self):
         #well obviosly there needs to be a data base of how to do each crop. 
         #then we also can look back at other times we did this crop
+        #this is a GUI thing eventually 
         
         print("This is setting up the crop plan. What is the cultivar name?")
         n = input()
@@ -292,9 +346,37 @@ class crop_plan:
     def print_plan(self):
         for e in self.event_list:
             e.pretty_print()
+        return
             
-           
-
+    def fill_events_from_dir(self , path , cultivar ):
+        #look at all .csv files in this dir, try to load them as events. 
+        filepathlist = (glob.glob(path + "*.csv"))
+        for f in filepathlist:
+            try: 
+                event = crop_event()
+                event.load_from_csv( f)
+            except:
+                print("couldn't read data file " + f )
+                pass 
+            self.event_list.append(event)
+        
+       
+        self.details['cultivar'] = cultivar.name
+        self.details['soil_plot_ids'] = [] #each soil plot has an area, so this is how to figure out how much we are planting
+        self.details['location'] = "placename" #no spaces or special characters here, used as a file name part
+        self.details['cropfile.CRO'] = cultivar.cropfilename
+        self.details['irrigation.IRR'] = "(NONE)" 
+        self.details['minimum_harvest_temperature'] = cultivar.minimum_harvest_temperature
+        self.details['death_temperature'] = cultivar.death_temperature
+        self.details['cultivar_class'] = cultivar
+        return
+        
+    def add_soil_ids(self , id_list):
+        self.details['soil_plot_ids'] =id_list
+        for e in self.event_list:
+            e.details['soil_plot_ids'] =id_list
+        return
+                        
         
 class crop_event:
     def __init__(self):
@@ -314,8 +396,8 @@ class crop_event:
         
         self.computer_details = {} #this is stuff that the farmer should never have to adjust manually in .csv 
         self.computer_details['planned_timestamp'] = 0 
-        self.computer_details['actual_timestamp_start'] = ' ' 
-        self.computer_details['actual_timestamp_end'] = ' ' 
+        self.computer_details['actual_timestamp_start'] = -1 
+        self.computer_details['actual_timestamp_end'] = -1
  
     
     def compare_events( self , eB ):
@@ -463,22 +545,25 @@ print(lettuce_plan2.event_list[0].computer_details['planned_timestamp'])
 ###setup the whole farm 
 Farm = farm_data()
 Farm.soil_plot_dict['id0']=(s1)
-Farm.active_crop_plan_list.append(lettuce_plan)
-Farm.active_crop_plan_list.append(lettuce_plan2)
-dump_farm_data(Farm)
+dt = datetime(2024,3,25)
+Farm.weather.last_observed_time = dt.timestamp() 
+Farm.weather.fill_with_prediction(365)
 
-Farm = load_farm_data(Farm)
-print()
-print()
-print()
-print()
-print()
-lettuce_plan.print_plan()
-lettuce_plan2.print_plan()
+saladbowl = cultivar()
+saladbowl.name  = "saladbowl"
+saladbowl.cropfilename = "saladbowl3.CRO" 
+saladbowl.species = "lactuca sativa"
+saladbowl.minimum_harvest_temperature = 0
+saladbowl.death_temperature = -2
+
+salad_plan = crop_plan()
+salad_plan.fill_events_from_dir("./lettuce_event_templates/" , saladbowl)
+salad_plan.add_soil_ids( ['id0'] )
+salad_plan.print_plan()
+
+opt = optimizer(Farm , saladbowl, salad_plan)
 
 
-t, l =Farm.estimate_labour( [lettuce_plan, lettuce_plan2 ])
-print(t)
-# ~ lettuce_plan_X = crop_plan()
-# ~ lettuce_plan_X.event_list = l 
-# ~ lettuce_plan_X.print_plan()
+
+
+
