@@ -233,7 +233,9 @@ def simAquaCrop( location_tag, path , start_date , stop_date ,  df , minimum_har
     
     
     
-    print( " getting sim files ready for year =" , start_date) 
+    print( " getting sim files ready for year =" , start_date, stop_date) 
+    # ~ print(df)
+    assert( stop_date in df.index)
     make_sim_setup_files( location_tag,path, start_date  ,stop_date , df, crop_file , irrigation_file)
     os.system('cd ' + path + '\n' + './aquacrop')
 
@@ -253,53 +255,23 @@ def simAquaCrop( location_tag, path , start_date , stop_date ,  df , minimum_har
     dfout['dateobject'] = pd.to_datetime(dict(year=dfout.Year, month=dfout.Month, day=dfout.Day))
     
     # ~ dfout['dateobject'] = dfout['dateobject'].to_datetime()
-    return dfout
     
-    
-    
-    
-    
-    
-    dfout.to_csv(path+"/PRMdayout.csv")
-
-    # ~ print("dfout" )
-    # ~ print( dfout)
-    # ~ dfout = dfout.iloc[1:, :] #drop row with units 
     dfout["DAP"] = pd.to_numeric(dfout["DAP"])
     
-    #get rid of rows when it was too cold
-    cold_index = -999 
-    for a in range( 0 , len(dfout.index)):
-        if( dfout['Tmin'].loc[a] < minimum_harvest_temperature):
-            cold_index = a 
+    #option one- yeild when crop is mature, truncate dfout there
+    #option 2 - yield when temp min falls below minimum harvest temperature, truncate dfout there 
+    cropendindex = df.index[-1] #first guess is it's the end of the input file date. 
+    for i , ival in enumerate(dfout.index):
+        if (dfout['Tmin'].loc[ival] < minimum_harvest_temperature):
+            cropendindex = ival
             break
 
-    #if there are no days left just stop there and return placeholder values
-    if ( cold_index) <= 1:
-        return -1, start_date , -999, -999, -1
+            
+    cropmatureindex = dfout['DAP'].idxmax() #find index when DAP is greatest
+    if cropmatureindex < cropendindex:
+        cropendindex = cropmatureindex
     
-    #find the date when crop is mature
-    cropendindex = dfout['DAP'].idxmax()
-    if cold_index < cropendindex:
-        cropendindex = cold_index
-    ndays = dfout["DAP"].loc[cropendindex]
-    cropstartindex = dfout.index[0]
-    
+    dfout = dfout.loc[dfout.index[0]:cropendindex]
+    return dfout
 
-    # ~ print(cropstartindex)
-    
-    yield_fresh_per_ha = (dfout['Y(fresh)'].loc[cropendindex])
-    # ~ print(yield_fresh_per_ha)
-    harvest_year = int(dfout['Year'].loc[cropendindex])
-    harvest_month = int(dfout['Month'].loc[cropendindex])
-    harvest_day = int(dfout['Day'].loc[cropendindex])
-    harvest_date = datetime( harvest_year, harvest_month , harvest_day)
-    
-
-    #collect some weather stats
-    # ~ Tmax_at_start = float(dfout['Tmax'].loc[cropstartindex])
-    # ~ Tmin_at_start = float(dfout['Tmin'].loc[cropstartindex])
-    
-    # ~ dfout.to_csv("temp.csv")
-    
-    return yield_fresh_per_ha, harvest_date , ndays
+   

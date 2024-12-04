@@ -8,6 +8,7 @@ from aquacrop import aquacrop_wrapper
 import pprint
 import pickle
 import glob
+import random
 
 def dump_farm_data( f):
     dtn = datetime.now()
@@ -67,6 +68,11 @@ class weather:
         listdeltas= []
         for a in range( 1 , 11):
             listdeltas.append( pd.Timedelta(days=a*365) )
+            
+        yb =random.randint(0, len(listdeltas)-1 )
+        print(yb,len(listdeltas))
+        yb = 2
+        
         
         df = pd.DataFrame(columns=self.df_observed.columns.values, index=datelist)
         
@@ -86,7 +92,7 @@ class weather:
                 Tmin.append (self.df_observed['Tmin(C)'].loc[d - bdelta])
             # ~ Datetime,Day,Month,Year,Tmin(C),Tmax(C),Prcp(mm),ET0
             
-            df.loc[d] = pd.Series({'Day':d.day, 'Month':d.month, 'Year':d.year, 'Tmin(C)':np.mean(Tmin) , 'Tmax(C)':np.mean(Tmax), 'Prcp(mm)':np.mean(prcp) , 'ET0':np.mean(ET0) })
+            df.loc[d] = pd.Series({'Day':d.day, 'Month':d.month, 'Year':d.year, 'Tmin(C)':Tmin[yb] , 'Tmax(C)':Tmax[yb], 'Prcp(mm)':prcp[yb] , 'ET0':ET0[yb] })
             
             # ~ print(np.mean(ET0))
     
@@ -95,9 +101,40 @@ class weather:
         idstr = str(self.df_observed.index[-1].day) + '-' +str(self.df_observed.index[-1].month) + '-' + str(self.df_observed.index[-1].year)
         dfout.to_csv('predicted_' + idstr+ '_climate_ofp.csv')
         dfout['datetime'] = pd.to_datetime(dfout[['Year', 'Month', 'Day']]) 
+        dfout = dfout.set_index('datetime')
+        dfout['datetime'] = dfout.index
+        idx = np.unique( dfout.index.values, return_index = True )[1]
+        dfout = dfout.iloc[idx]   
 
+
+        dfout['Tmax(C)'] = pd.to_numeric(dfout['Tmax(C)'],errors = 'coerce')
+        dfout['Tmin(C)'] = pd.to_numeric(dfout['Tmin(C)'],errors = 'coerce')
+        dfout['Prcp(mm)'] = pd.to_numeric(dfout['Prcp(mm)'],errors = 'coerce')
+        dfout['ET0'] = pd.to_numeric(dfout['ET0'],errors = 'coerce')
+        
+        dfout['Day'] = pd.to_numeric(dfout['Day'],errors = 'coerce')
+        dfout['Month'] = pd.to_numeric(dfout['Month'],errors = 'coerce')
+        dfout['Year'] = pd.to_numeric(dfout['Year'],errors = 'coerce')
+        
         self.df_predict = dfout
 
+        # ~ print(dfout.info)
+        # ~ print(self.df_predict.loc[ datetime(2024,3,15) : datetime(2024,3,30) ] )
+
+        # ~ quit()
+       
+
+# farm planner farm class 
+class farm_data:
+    def __init__(self):
+        self.farm_address = "South Ohio, NS"
+        self.farm_name = "TestFarm" 
+        self.soil_plot_dict = {} #id is key, value is soil_plot class instance
+        self.active_crop_plan_list = []
+        self.past_crop_plan_list = []
+        self.weather = weather()
+        self.weather.load_observed_weather()
+        
 
 class optimizer:
     def __init__(self , fd , cultivar, sample_crop_plan):
@@ -111,15 +148,41 @@ class optimizer:
         self.labour_constant_min = 10
         self.labour_min_per_m2 = 60
         self.startdate = datetime(1901,1,1)
+        self.enddate = datetime(1901,1,1)
         self.sample_crop_plan = sample_crop_plan
-    
+        
     
     def make_yield_matrix(self):
         #populate self.dates
-        self.dates = pd.date_range(start= self.startdate, end=fd.weather.df_predict.index[-1]  , freq='D')
+        self.dates = pd.date_range(start= self.startdate, end=self.enddate  , freq='D')
+        ndates = len(self.dates)
         
-        #
-         
+        #sim all these dates if the temperature makes sense:
+        list_of_sim_dfs = [pd.DataFrame()]* ndates
+        print(self.farm_data.weather.df_predict)
+        
+        print(self.farm_data.weather.df_predict.loc[ datetime(2024,3,15) : datetime(2024,3,30) ] )
+
+        
+        for i, dt in enumerate(self.dates):
+            #is it too cold to plant? 
+            min_temp = ( self.farm_data.weather.df_predict['Tmin(C)'].loc[dt])
+            print(min_temp , "min temp")
+            if min_temp <= self.cultivar.death_temperature:
+                pass
+            else:
+                list_of_sim_dfs[i] = aquacrop_wrapper.simAquaCrop(  'plansim', "./aquacrop" , dt , self.farm_data.weather.df_predict['datetime'].iloc[-2] ,  self.farm_data.weather.df_predict , self.cultivar.minimum_harvest_temperature, self.cultivar.cropfilename , self.sample_crop_plan.details['irrigation.IRR']) 
+
+        #ok, now go through those sims and pick out the yield:
+        
+        yieldF = np.zeros(ndates)
+        print(yieldF)
+
+        for i, dt in enumerate(self.dates):
+            yieldF[i] = 0 
+            if( len(list_of_sim_dfs[i].index)>=1): 
+                yieldF[i] = list_of_sim_dfs[i]['Y(fresh)'].iloc[-1] 
+        print(yieldF)
         
     
     def estimate_labour_for_crop(self  ):
@@ -174,8 +237,12 @@ class optimizer:
     def cost_func( self, area_vector):
         return
     
-    def optimize_cultivar( self , sample_crop_plan, startdate ):
+    def optimize_cultivar( self , startdate , enddate ):
         self.startdate = startdate
+        self.enddate = enddate
+        
+        self.make_yield_matrix()
+        
         #1 do a bunch of sims for start date until end of predicted weather. start everyday, make a list of start dates and yeilds. don't add when too cold on start date. end early on minimum harvest temperature
         #1b save those sims df, we'll need them at the end 
         
@@ -193,16 +260,7 @@ class optimizer:
         
         
 
-# farm planner farm class 
-class farm_data:
-    def __init__(self):
-        self.farm_address = "South Ohio, NS"
-        self.farm_name = "TestFarm" 
-        self.soil_plot_dict = {} #id is key, value is soil_plot class instance
-        self.active_crop_plan_list = []
-        self.past_crop_plan_list = []
-        self.weather = weather()
-        self.weather.load_observed_weather()
+
         
     
     
@@ -261,8 +319,9 @@ class crop_plan:
         
 
     def set_event_times(self , planting_datetime , df_predict):
+    
         
-        self.simdf = aquacrop_wrapper.simAquaCrop(  self.details['location'], "./aquacrop" , planting_datetime , df_predict['datetime'].iloc[-1] ,  df_predict , self.details['minimum_harvest_temperature'] , self.details['cropfile.CRO'] , self.details['irrigation.IRR']) 
+        self.simdf = aquacrop_wrapper.simAquaCrop(  self.details['location'], "./aquacrop" , planting_datetime , df_predict['datetime'].iloc[-2] ,  df_predict , self.details['minimum_harvest_temperature'] , self.details['cropfile.CRO'] , self.details['irrigation.IRR']) 
          # ~ = pd.read_csv( "./aquacrop/PRMdayout.csv" ) 
         
         for e in self.event_list:
@@ -527,18 +586,13 @@ dt = datetime(2024,3,25)
 W.last_observed_time = dt.timestamp() 
 W.load_observed_weather()
         
-W.fill_with_prediction(360)
+W.fill_with_prediction(365)
 
 
 #back to crop plan 
 lettuce_plan.set_event_times( dt, W.df_predict)
 lettuce_plan.print_plan()
-print(";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;")
-dt2 = datetime(2024,5,30)
-lettuce_plan2.set_event_times( dt2, W.df_predict)
 
-print(lettuce_plan.event_list[0].computer_details['planned_timestamp'])
-print(lettuce_plan2.event_list[0].computer_details['planned_timestamp'])
 
 
 
@@ -562,7 +616,9 @@ salad_plan.add_soil_ids( ['id0'] )
 salad_plan.print_plan()
 
 opt = optimizer(Farm , saladbowl, salad_plan)
-
+dt = datetime(2024,3,25)
+dte = datetime(2024,12,30)
+opt.optimize_cultivar( dt  , dte)
 
 
 
