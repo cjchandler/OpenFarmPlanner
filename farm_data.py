@@ -10,6 +10,10 @@ import pickle
 import glob
 import random
 
+from weather import *
+from optimizer import *
+
+
 def dump_farm_data( f):
     dtn = datetime.now()
     filename = f.farm_name + "_farm_state.pickle"
@@ -39,89 +43,7 @@ def load_farm_data(f):
 
     
 
-class weather:
-    def __init__(self):
-        self.last_observed_time = 0 #this is timestamp for the last actual data we have, after that it's all prediction
-        self.df_daily = pd.DataFrame() #this is observed and forcast weather all in a lump so we can run the crop model 
-        self.df_observed = pd.DataFrame() #real weather as observed
-        #weather df format:[ 'Day', 'Month' , 'Year' , 'Tmin(C)' , 'Tmax(C)' , 'Prcp(mm)' , 'ET0']
-        self.df_predict = pd.DataFrame()
-        
-    def load_observed_weather(self):
-        self.df_observed = pd.read_csv('./localWeatherData/climate_ofp.csv') 
-        self.df_observed['Datetime'] = pd.to_datetime(self.df_observed['Datetime'])
-        self.df_observed = self.df_observed.set_index('Datetime') 
-        
-    def fill_with_prediction( self, ndays):
-        #look at the observed weather and guess at the future weather
-        last_datetime = datetime.fromtimestamp( self.last_observed_time)
-        self.df_observed = self.df_observed.loc[:last_datetime]
-        
-        print(self.df_observed)
 
-       
-        
-        #make a range of dates into the future 
-        datelist = pd.date_range(last_datetime, periods=ndays)
-        print(datelist)
-        
-        listdeltas= []
-        for a in range( 1 , 11):
-            listdeltas.append( pd.Timedelta(days=a*365) )
-            
-        yb =random.randint(0, len(listdeltas)-1 )
-        print(yb,len(listdeltas))
-        yb = 2
-        
-        
-        df = pd.DataFrame(columns=self.df_observed.columns.values, index=datelist)
-        
-        for d in datelist:
-            Tmin = []
-            Tmax = []
-            ET0 = []
-            prcp =[]
-            #look at the past 10 years on this date: 
-            #make a list of the rows we get: 
-            rowlist = []
-            for bdelta in listdeltas:
-                
-                ET0.append (self.df_observed['ET0'].loc[d - bdelta])
-                prcp.append (self.df_observed['Prcp(mm)'].loc[d - bdelta])
-                Tmax.append (self.df_observed['Tmax(C)'].loc[d - bdelta])
-                Tmin.append (self.df_observed['Tmin(C)'].loc[d - bdelta])
-            # ~ Datetime,Day,Month,Year,Tmin(C),Tmax(C),Prcp(mm),ET0
-            
-            df.loc[d] = pd.Series({'Day':d.day, 'Month':d.month, 'Year':d.year, 'Tmin(C)':Tmin[yb] , 'Tmax(C)':Tmax[yb], 'Prcp(mm)':prcp[yb] , 'ET0':ET0[yb] })
-            
-            # ~ print(np.mean(ET0))
-    
-        dfout = pd.concat( [self.df_observed, df])
-        print(dfout)
-        idstr = str(self.df_observed.index[-1].day) + '-' +str(self.df_observed.index[-1].month) + '-' + str(self.df_observed.index[-1].year)
-        dfout.to_csv('predicted_' + idstr+ '_climate_ofp.csv')
-        dfout['datetime'] = pd.to_datetime(dfout[['Year', 'Month', 'Day']]) 
-        dfout = dfout.set_index('datetime')
-        dfout['datetime'] = dfout.index
-        idx = np.unique( dfout.index.values, return_index = True )[1]
-        dfout = dfout.iloc[idx]   
-
-
-        dfout['Tmax(C)'] = pd.to_numeric(dfout['Tmax(C)'],errors = 'coerce')
-        dfout['Tmin(C)'] = pd.to_numeric(dfout['Tmin(C)'],errors = 'coerce')
-        dfout['Prcp(mm)'] = pd.to_numeric(dfout['Prcp(mm)'],errors = 'coerce')
-        dfout['ET0'] = pd.to_numeric(dfout['ET0'],errors = 'coerce')
-        
-        dfout['Day'] = pd.to_numeric(dfout['Day'],errors = 'coerce')
-        dfout['Month'] = pd.to_numeric(dfout['Month'],errors = 'coerce')
-        dfout['Year'] = pd.to_numeric(dfout['Year'],errors = 'coerce')
-        
-        self.df_predict = dfout
-
-        # ~ print(dfout.info)
-        # ~ print(self.df_predict.loc[ datetime(2024,3,15) : datetime(2024,3,30) ] )
-
-        # ~ quit()
        
 
 # farm planner farm class 
@@ -136,134 +58,7 @@ class farm_data:
         self.weather.load_observed_weather()
         
 
-class optimizer:
-    def __init__(self , fd , cultivar, sample_crop_plan):
-        self.cultivar= cultivar
-        self.farm_data = fd
-        self.Yield = np.zeros([2,2])
-        self.demand_kg_per_day = [ 1 , 1]
-        self.yield_kg_per_day = [ 0 , 0]
-        self.dates = [ datetime(1901,1,1) , datetime(1901,1,2) ]
-        self.demand_forcing_intensity = 0.1
-        self.labour_constant_min = 10
-        self.labour_min_per_m2 = 60
-        self.startdate = datetime(1901,1,1)
-        self.enddate = datetime(1901,1,1)
-        self.sample_crop_plan = sample_crop_plan
-        
-    
-    def make_yield_matrix(self):
-        #populate self.dates
-        self.dates = pd.date_range(start= self.startdate, end=self.enddate  , freq='D')
-        ndates = len(self.dates)
-        
-        #sim all these dates if the temperature makes sense:
-        list_of_sim_dfs = [pd.DataFrame()]* ndates
-        print(self.farm_data.weather.df_predict)
-        
-        print(self.farm_data.weather.df_predict.loc[ datetime(2024,3,15) : datetime(2024,3,30) ] )
 
-        
-        for i, dt in enumerate(self.dates):
-            #is it too cold to plant? 
-            min_temp = ( self.farm_data.weather.df_predict['Tmin(C)'].loc[dt])
-            print(min_temp , "min temp")
-            if min_temp <= self.cultivar.death_temperature:
-                pass
-            else:
-                list_of_sim_dfs[i] = aquacrop_wrapper.simAquaCrop(  'plansim', "./aquacrop" , dt , self.farm_data.weather.df_predict['datetime'].iloc[-2] ,  self.farm_data.weather.df_predict , self.cultivar.minimum_harvest_temperature, self.cultivar.cropfilename , self.sample_crop_plan.details['irrigation.IRR']) 
-
-        #ok, now go through those sims and pick out the yield:
-        
-        yieldF = np.zeros(ndates)
-        print(yieldF)
-
-        for i, dt in enumerate(self.dates):
-            yieldF[i] = 0 
-            if( len(list_of_sim_dfs[i].index)>=1): 
-                yieldF[i] = list_of_sim_dfs[i]['Y(fresh)'].iloc[-1] 
-        print(yieldF)
-        
-    
-    def estimate_labour_for_crop(self  ):
-        crop_plan = self.sample_crop_plan
-        #give a constan time for this crop, and a time per m2 
-        
-        
-        #if there are events in past crop plans with the same description, worker id as the proposed ones,
-        #make a list of mean_past_events where each event has a mean time scaled by area
-        if ( len(self.farm_data.past_crop_plan_list) > 0 ): 
-            self.farm_data.mean_past_events = [ self.past_crop_plan_list[0].event_list[0] ]
-            for past_crop_plan in self.farm_data.past_crop_plan_list:
-                for pe in past_crop_plan:
-                #check if pe is in mean_past_events. 
-                    for me in mean_past_events:
-                        if pe.compare_events(me) == True:
-                            #update the mean, add the area aka soil plot ids and add and time_taken_min
-                            me.details['time_taken_min'] = me.details['time_taken_min'] + pe.details['time_taken_min'] 
-                            me.details['soil_plot_ids'] = me.details['soil_plot_ids']  + pe.details['soil_plot_ids'] 
-                        else:
-                            mean_past_events.append(pe)
-
-        #now look at the proposed events. crop_plan.event_list
-        
-        #now make a best time 'time_estimate_generated' for each of these events using either mean_past_events or calcualtion from human input
-        # ~ print( len(joined_proposed_events) ) 
-        # ~ joined_proposed_events[0].pretty_print() 
-        
-        area_time_min = 0
-        constant_time_min = 0 
-        switching_min = 2 #time cost to switch jobs  
-        for e in crop_plan.event_list:
-            area = 0 
-            for sid in e.details['soil_plot_ids']:
-                area+= self.soil_plot_dict[ sid ].details['area_m2']
-        
-            e.details['time_estimate_generated']= switching_min + e.details['time_estimate_min_per_m2']*area
-            area_time_min += e.details['time_estimate_min_per_m2']
-            constant_time_min += switching_min
-        
-        
-        return  constant_time_min, area_time_min
-        
-    def estimate_labour_for_crop_Matrix(self , area_vector  ):
-        #give a time for this crop area vector 
-        return labour_min
-        
-    def compare_demand_and_yield( self):
-        return
-        
-        
-    def cost_func( self, area_vector):
-        return
-    
-    def optimize_cultivar( self , startdate , enddate ):
-        self.startdate = startdate
-        self.enddate = enddate
-        
-        self.make_yield_matrix()
-        
-        #1 do a bunch of sims for start date until end of predicted weather. start everyday, make a list of start dates and yeilds. don't add when too cold on start date. end early on minimum harvest temperature
-        #1b save those sims df, we'll need them at the end 
-        
-        #2 make a yield matrix
-        
-        #3 make a labour estimate
-        
-        #4 setup cost func 
-        
-        #5 optimize cost func 
-        
-        #6 change the area vector the we optimized into a list of crop plans
-        
-        return
-        
-        
-
-
-        
-    
-    
     
     
     
@@ -289,6 +84,8 @@ class cultivar:
         self.species = ""
         self.minimum_harvest_temperature =0 
         self.death_temperature = 0 
+        self.shelf_life_post_harvest = 3 
+        self.post_harvest_storage_instructions = ''
         
 
 
@@ -519,106 +316,81 @@ class crop_event:
 
 
 
-CE = crop_event()
-CE.save_as_csv("my_test_event.csv")
-CE.load_from_csv("./lettuce_event_templates/plant_lettuce_event.csv")
+# ~ CE = crop_event()
+# ~ CE.save_as_csv("my_test_event.csv")
+# ~ CE.load_from_csv("./lettuce_event_templates/plant_lettuce_event.csv")
  
 
-# Define starting point.
-start = geopy.Point(42.91298, -66.071038)
+# ~ # Define starting point.
+# ~ start = geopy.Point(42.91298, -66.071038)
 
-# Define a general distance object, initialized with a distance of 1 m.
-d = geopy.distance.distance(kilometers = 0.001)
+# ~ # Define a general distance object, initialized with a distance of 1 m.
+# ~ d = geopy.distance.distance(kilometers = 0.001)
 
-# Use the `destination` method with a bearing of 0 degrees (which is north)
-# in order to go from point `start` 1 m to north.
-pN =   d.destination(point=start, bearing=0)
-pNE =   d.destination(point=pN, bearing=90)
-pNES =   d.destination(point=pNE, bearing=180)
-s1 = soil_plot()
-s1.details['corner_gps_points'] = [ start , pN , pNE , pNES ] 
-s1.details['area_m2'] = 1
-CE.details["soil_plot_list"] = [s1.details["id"] ]
+# ~ # Use the `destination` method with a bearing of 0 degrees (which is north)
+# ~ # in order to go from point `start` 1 m to north.
+# ~ pN =   d.destination(point=start, bearing=0)
+# ~ pNE =   d.destination(point=pN, bearing=90)
+# ~ pNES =   d.destination(point=pNE, bearing=180)
+# ~ s1 = soil_plot()
+# ~ s1.details['corner_gps_points'] = [ start , pN , pNE , pNES ] 
+# ~ s1.details['area_m2'] = 1
+# ~ CE.details["soil_plot_list"] = [s1.details["id"] ]
 
-lettuce_plan = crop_plan()
-lettuce_plan2= crop_plan()
+# ~ lettuce_plan = crop_plan()
+# ~ lettuce_plan2= crop_plan()
 
-lettuce_plan.details['cultivar'] = 'salad bowl' 
-lettuce_plan2.details['cultivar'] = 'salad bowl' 
+# ~ lettuce_plan.details['cultivar'] = 'salad bowl' 
+# ~ lettuce_plan2.details['cultivar'] = 'salad bowl' 
 
-soil_prep = crop_event()
-soil_prep2 = crop_event()
-soil_prep.load_from_csv( "./lettuce_event_templates/prepare_soil_tarps_event.csv")
-soil_prep2.load_from_csv( "./lettuce_event_templates/prepare_soil_tarps_event.csv")
+# ~ soil_prep = crop_event()
+# ~ soil_prep2 = crop_event()
+# ~ soil_prep.load_from_csv( "./lettuce_event_templates/prepare_soil_tarps_event.csv")
+# ~ soil_prep2.load_from_csv( "./lettuce_event_templates/prepare_soil_tarps_event.csv")
 
-planting = crop_event()
-planting2 = crop_event()
-planting.load_from_csv( "./lettuce_event_templates/plant_lettuce_event.csv")
-planting2.load_from_csv( "./lettuce_event_templates/plant_lettuce_event.csv")
+# ~ planting = crop_event()
+# ~ planting2 = crop_event()
+# ~ planting.load_from_csv( "./lettuce_event_templates/plant_lettuce_event.csv")
+# ~ planting2.load_from_csv( "./lettuce_event_templates/plant_lettuce_event.csv")
 
-weeding = crop_event()
-weeding2 = crop_event()
-weeding.load_from_csv( "./lettuce_event_templates/weed_lettuce_event.csv")
-weeding2.load_from_csv( "./lettuce_event_templates/weed_lettuce_event.csv")
+# ~ weeding = crop_event()
+# ~ weeding2 = crop_event()
+# ~ weeding.load_from_csv( "./lettuce_event_templates/weed_lettuce_event.csv")
+# ~ weeding2.load_from_csv( "./lettuce_event_templates/weed_lettuce_event.csv")
 
-harvesting = crop_event()
-harvesting2 = crop_event()
-harvesting.load_from_csv( "./lettuce_event_templates/harvest_lettuce_event.csv")
-harvesting2.load_from_csv( "./lettuce_event_templates/harvest_lettuce_event.csv")
+# ~ harvesting = crop_event()
+# ~ harvesting2 = crop_event()
+# ~ harvesting.load_from_csv( "./lettuce_event_templates/harvest_lettuce_event.csv")
+# ~ harvesting2.load_from_csv( "./lettuce_event_templates/harvest_lettuce_event.csv")
 
-post_harvesting = crop_event()
-post_harvesting2 = crop_event()
-post_harvesting.load_from_csv( "./lettuce_event_templates/post_harvest_lettuce_event.csv")
-post_harvesting2.load_from_csv( "./lettuce_event_templates/post_harvest_lettuce_event.csv")
+# ~ post_harvesting = crop_event()
+# ~ post_harvesting2 = crop_event()
+# ~ post_harvesting.load_from_csv( "./lettuce_event_templates/post_harvest_lettuce_event.csv")
+# ~ post_harvesting2.load_from_csv( "./lettuce_event_templates/post_harvest_lettuce_event.csv")
 
-lettuce_plan.event_list = [ soil_prep , planting , weeding, harvesting , post_harvesting] 
-for e in lettuce_plan.event_list:
-    e.details['soil_plot_ids'] = ['id0' ]
+# ~ lettuce_plan.event_list = [ soil_prep , planting , weeding, harvesting , post_harvesting] 
+# ~ for e in lettuce_plan.event_list:
+    # ~ e.details['soil_plot_ids'] = ['id0' ]
 
-lettuce_plan2.event_list = [ soil_prep2 , planting2 , weeding2, harvesting2 , post_harvesting2] 
-for e in lettuce_plan2.event_list:
-    e.details['soil_plot_ids'] = ['id0'] 
-#so these are all the events, but they don't have any times associated with them 
+# ~ lettuce_plan2.event_list = [ soil_prep2 , planting2 , weeding2, harvesting2 , post_harvesting2] 
+# ~ for e in lettuce_plan2.event_list:
+    # ~ e.details['soil_plot_ids'] = ['id0'] 
+# ~ #so these are all the events, but they don't have any times associated with them 
 
-#now I load the weather so I can work on time and simulations 
-W = weather()
-dt = datetime(2024,3,25)
-W.last_observed_time = dt.timestamp() 
-W.load_observed_weather()
+# ~ #now I load the weather so I can work on time and simulations 
+# ~ W = weather()
+# ~ dt = datetime(2024,3,25)
+# ~ W.last_observed_time = dt.timestamp() 
+# ~ W.load_observed_weather()
         
-W.fill_with_prediction(365)
+# ~ W.fill_with_prediction(365 , True)
 
 
-#back to crop plan 
-lettuce_plan.set_event_times( dt, W.df_predict)
-lettuce_plan.print_plan()
+# ~ #back to crop plan 
+# ~ lettuce_plan.set_event_times( dt, W.df_predict)
+# ~ lettuce_plan.print_plan()
 
 
-
-
-###setup the whole farm 
-Farm = farm_data()
-Farm.soil_plot_dict['id0']=(s1)
-dt = datetime(2024,3,25)
-Farm.weather.last_observed_time = dt.timestamp() 
-Farm.weather.fill_with_prediction(365)
-
-saladbowl = cultivar()
-saladbowl.name  = "saladbowl"
-saladbowl.cropfilename = "saladbowl3.CRO" 
-saladbowl.species = "lactuca sativa"
-saladbowl.minimum_harvest_temperature = 0
-saladbowl.death_temperature = -2
-
-salad_plan = crop_plan()
-salad_plan.fill_events_from_dir("./lettuce_event_templates/" , saladbowl)
-salad_plan.add_soil_ids( ['id0'] )
-salad_plan.print_plan()
-
-opt = optimizer(Farm , saladbowl, salad_plan)
-dt = datetime(2024,3,25)
-dte = datetime(2024,12,30)
-opt.optimize_cultivar( dt  , dte)
 
 
 
