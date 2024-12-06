@@ -133,14 +133,16 @@ class optimizer2:
 
             harvest_kg_per_m2 = input_sim_df_list[closest_index]['Y(fresh)'].iloc[harvest_df_index]*1000/10000 #this units thing is so we get kg/m2 not ton per hectacre
             # ~ print( "harvest_kg_per_m2" , harvest_kg_per_m2)
+            planting_date_i = self.dates.index( planting_date )
+
 
         if closest_index == -1:
             #no solution
             planting_date= datetime(1901, 1,1 ) 
             harvest_kg_per_m2  = 0 
+            planting_date_i = -1
                 #look at yield
         
-        planting_date_i = self.dates.index( planting_date )
         # ~ print(planting_date_i, planting_date , harvest_kg_per_m2 , "planting_date_i, planting_date , harvest_kg_per_m2")
         return planting_date_i, planting_date , harvest_kg_per_m2
     

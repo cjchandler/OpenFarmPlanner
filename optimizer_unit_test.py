@@ -97,7 +97,15 @@ if True:
     print( opt2.estimate_sales( opt2.H.dot(plant_area) ) , "kg sales")
 
 
-
+if True: 
+    print(opt2.allowed_harvest_dates)
+    allowed_harvest_bool = np.zeros(opt2.ndates)
+    for i , val in enumerate(allowed_harvest_bool):
+        if opt2.dates[i] in opt2.allowed_harvest_dates:
+            allowed_harvest_bool[i]  = 1 
+    print( allowed_harvest_bool) 
+    plant_area = opt2.find_planting_areas( np.ones( opt2.ndates) , allowed_harvest_bool )
+    print(plant_area)
 
 
 
