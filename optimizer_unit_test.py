@@ -45,6 +45,77 @@ dte = datetime(2024,12,30)
 opt.startdate = dts 
 opt.enddate = dte 
 
+##optimiser 2 
+opt2 = optimizer2(Farm , saladbowl, salad_plan)
+dts = datetime(2024,3,25)
+dte = datetime(2024,12,30)# make sure you predicte the future weather well beyond this dte so that the last sim has data to run on.
+opt2.startdate = dts 
+opt2.enddate = dte 
+opt2.setup_allowed_harvest_dates()
+if True:
+    print(opt2.allowed_harvest_dates)
+
+if False:
+    opt2.do_aquacrop_sims()
+    # ~ print( opt2.list_of_sim_dfs)
+    with open('testopt3.pickle', 'wb') as handle:
+        pickle.dump( opt2 , handle, protocol=pickle.HIGHEST_PROTOCOL)
+if True:
+    #reload from pickle all the sims 
+    with open('testopt3.pickle', 'rb') as handle:
+        opt2 = pickle.load(handle)
+     
+    print( opt2.find_best_planting_date( opt2.list_of_sim_dfs, datetime( 2024 , 6 , 6)))
+
+if True:
+    opt2.set_constant_demand(1)
+    plant_bool = np.zeros( opt2.ndates)
+    harvest_bool = np.zeros( opt2.ndates)
+    
+    f = 20
+    harvest_bool[101+f] = 1 
+    harvest_bool[103+f] = 1 
+    harvest_bool[106+f] = 1 
+    
+    plant_bool[81+ f] = 1 
+    plant_bool[82+f] = 1 
+    plant_bool[84+f] = 1 
+    
+    plant_area = opt2.find_planting_areas( plant_bool , harvest_bool)
+    print(plant_area)
+    
+
+if True: 
+    opt2.make_yield_matrix()
+    print( opt2.H)
+    
+    print( opt2.estimate_labour_for_crop())
+    
+    print( opt2.estimate_labour_for_crop_Matrix(plant_area) , "labour min" ) 
+    
+    
+    print( opt2.estimate_sales( opt2.H.dot(plant_area) ) , "kg sales")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+quit()
+##optimiser 1 
 if False: #test making matrix from sim yields
     opt.make_yield_matrix()
     ###ok, now lets test it, by planting 1 m2 area every day
@@ -65,7 +136,7 @@ if False: #test making matrix, then pickle it for testing faster
     with open('testopt.pickle', 'wb') as handle:
         pickle.dump( opt , handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-if True: #test the estimation of sales from demand and yield
+if False: #test the estimation of sales from demand and yield
     #reload from pickle all the sims 
     with open('testopt.pickle', 'rb') as handle:
         opt = pickle.load(handle)
@@ -82,7 +153,7 @@ if True: #test the estimation of sales from demand and yield
     with open('testopt2.pickle', 'wb') as handle: ###dump after optimization
         pickle.dump( opt , handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-if True:
+if False:
     #reload from pickle all the sims 
     with open('testopt2.pickle', 'rb') as handle:
         opt = pickle.load(handle)

@@ -253,7 +253,9 @@ def simAquaCrop( location_tag, path , start_date , stop_date ,  df , minimum_har
     dfout = pd.read_csv( path+"/OUTP/" + location_tag+ "PRMday.OUT", skiprows = 5, names= daily_header, sep="\\s+"  , index_col=None )
     
     dfout['dateobject'] = pd.to_datetime(dict(year=dfout.Year, month=dfout.Month, day=dfout.Day))
-    
+    dfout['timestamp'] = dfout['dateobject'].apply(pd.Timestamp)
+    dfout['timestamp'] = pd.to_numeric(dfout['timestamp']) / 1E9
+    # ~ print(dfout['timestamp'])
     # ~ dfout['dateobject'] = dfout['dateobject'].to_datetime()
     
     dfout["DAP"] = pd.to_numeric(dfout["DAP"])
