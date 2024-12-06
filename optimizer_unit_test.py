@@ -107,7 +107,8 @@ if True:
     plant_area = opt2.find_planting_areas( np.ones( opt2.ndates) , allowed_harvest_bool )
     print(plant_area)
 
-
+if True: 
+    opt2.optimize_cultivar(dts,dte)
 
 
 

@@ -28,14 +28,26 @@ class optimizer2:
         self.H = np.zeros([2,2]) #yield or harvest matrix
 
         self.allowed_harvest_dates = []
+        self.harvest_dates_bool = []
         self.list_of_sim_dfs = []
+        
+        self.max_area = 1e32 #this is to kill areas that are too large to be reasonable, inf that wrecks optimisation
         
         
     def setup_allowed_harvest_dates(self):
+        self.dates = pd.date_range(start= self.startdate, end=self.enddate  , freq='D').to_list()
+        self.ndates = len(self.dates)
+        
         d1 = pd.date_range(self.startdate, self.enddate, freq="W-MON")
         d2 = pd.date_range(self.startdate,  self.enddate, freq="W-THU")
 
         self.allowed_harvest_dates = d1.union(d2)
+        
+        self.harvest_dates_bool =np.zeros( self.ndates )
+        
+        for i , val in enumerate(self.harvest_dates_bool):
+            if self.dates[i] in self.allowed_harvest_dates:
+                self.harvest_dates_bool[i]  = 1
         
     
     def do_aquacrop_sims(self):
@@ -103,13 +115,13 @@ class optimizer2:
             
             if len(df.index) > 0 :
                 #look at the sim df dates.
-                print( harvest_date, "harvest date" , "sim range" ,  df['dateobject'].iloc[0] ,  df['dateobject'].iloc[-1] )
+                # ~ print( harvest_date, "harvest date" , "sim range" ,  df['dateobject'].iloc[0] ,  df['dateobject'].iloc[-1] )
                  
                 if harvest_date > df['dateobject'].iloc[0] and harvest_date < df['dateobject'].iloc[-1]: #then we can use this planting date potentially
                     
                     this_harvest_date = df['dateobject'].iloc[-1]
-                    print(this_harvest_date)
-                    print( abs(this_harvest_date.timestamp() - harvest_date.timestamp()) )
+                    # ~ print(this_harvest_date)
+                    # ~ print( abs(this_harvest_date.timestamp() - harvest_date.timestamp()) )
                     
                     if abs(this_harvest_date.timestamp() - harvest_date.timestamp()) <  abs(closest_date.timestamp() - harvest_date.timestamp() ) :
                         closest_date = this_harvest_date
@@ -171,6 +183,11 @@ class optimizer2:
                         storable_demand += self.demand[i+a]
                     
                     planting_areas[ plantdt_index ] = storable_demand/harvest_per_m2 
+            
+        
+        for i , val in enumerate(planting_areas):
+            if val > self.max_area: 
+                planting_areas[i] = 0 
             
         return planting_areas 
         
@@ -258,6 +275,49 @@ class optimizer2:
         
         return total_sold
         
+    def cost_func( self, planting_dates_bool): #input here is planting dates vector bool, optimal areas for that are calculated from sims and shelflife 
+        
+        area_vector = self.find_planting_areas(  planting_dates_bool , self.harvest_dates_bool)
+        
+        area_vector = area_vector * (area_vector >= 0) #this sets all the negative areas to zero
+        yield_vec = self.H.dot(area_vector)
+        sold = self.estimate_sales( yield_vec) 
+        time_labour = self.estimate_labour_for_crop_Matrix( area_vector) 
+        print(-sold/time_labour , sold , time_labour )
+        return -sold/time_labour #this kg sold/min of labour, obviously this needs to be maximized, use negative to minimize it
+        
+    def optimize_cultivar( self , startdate , enddate ):
+        self.startdate = startdate
+        self.enddate = enddate
+        
+        
+        bnds = [(-0.1, None) ]*self.ndates
+        guess_areas = np.zeros(self.ndates)
+        s = self.sample_crop_plan.details['cultivar_class'].shelf_life_post_harvest
+        for a, val in enumerate(guess_areas):
+            if a%s == 0:
+                guess_areas[a] = 1 
+        
+        integrality_bools = []
+        for b in range(0 , len(bnds)):
+            if self.yield_vec[b] == 0:
+                bnds[b] = (-0,0)
+            else:
+                bnds[b] = (-0.1, 1 )
+                
+            integrality_bools.append(True)##all boolean optimization params
+        
+        
+        optimal_planting = differential_evolution(self.cost_func, bnds, integrality = integrality_bools )
+        
+        print(optimal_planting.x)
+        area_vector = optimal_planting.x
+        area_vector = area_vector * (area_vector >= 0)
+        
+        #clean optimizer results: 
+        
+        self.optimum_planting_areas = area_vector
+        return area_vector
 
 
 class optimizer:
@@ -451,32 +511,11 @@ class optimizer:
             else:
                 bnds[b] = (-0.1, 1 )
                 
-            integrality_bools.append(True)
+            integrality_bools.append(True)##all boolean optimization params
         
-        method_name = 'Nelder-Mead' #'COBYLA' #'Powell'
         
-        minimizer_kwargs = {"method": "BFGS"}
-        # ~ optimal_planting = basinhopping(self.cost_func, guess_areas, minimizer_kwargs=minimizer_kwargs,niter=200)
         optimal_planting = differential_evolution(self.cost_func, bnds, integrality = integrality_bools )
         
-        # ~ optimal_planting = minimize(self.cost_func, guess_areas, method=method_name, bounds = bnds, tol=1e-6)
-        # ~ for a in range( 0 , 9):
-            # ~ optimal_planting = minimize(self.cost_func, optimal_planting.x, method=method_name, bounds = bnds, tol=1e-6)
-
-            #1 do a bunch of sims for start date until end of predicted weather. start everyday, make a list of start dates and yeilds. don't add when too cold on start date. end early on minimum harvest temperature
-            #1b save those sims df, we'll need them at the end 
-            
-            #2 make a yield matrix
-            
-            #3 make a labour estimate
-            
-            #3.5 make fit between demand and yield
-            
-            #4 setup cost func 
-            
-            #5 optimize cost func 
-            
-            #6 change the area vector the we optimized into a list of crop plans
         print(optimal_planting.x)
         area_vector = optimal_planting.x
         area_vector = area_vector * (area_vector >= 0)
