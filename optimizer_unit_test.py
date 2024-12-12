@@ -37,13 +37,7 @@ salad_plan.fill_events_from_dir("./lettuce_event_templates_unit_test/" , saladbo
 salad_plan.add_soil_ids( ['id0'] )
 salad_plan.print_plan()
 
-opt = optimizer(Farm , saladbowl, salad_plan)
-dts = datetime(2024,3,25)
-dte = datetime(2024,12,30)
-# ~ opt.optimize_cultivar( dts  , dte) # make sure you predicte the future weather well beyond this dte so that the last sim has data to run on.
 
-opt.startdate = dts 
-opt.enddate = dte 
 
 ##optimiser 2 
 opt2 = optimizer2(Farm , saladbowl, salad_plan)
@@ -112,8 +106,14 @@ if True:
 
 
 
+if False: 
+    opt2.brute_force_opt(dts,dte)
 
+testplant = np.zeros(opt2.ndates)
+testplant[9] = 1
 
+print(  testplant)
+print( opt2.cost_func(testplant))
 
 
 
