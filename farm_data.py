@@ -86,7 +86,8 @@ class cultivar:
         self.death_temperature = 0 
         self.shelf_life_post_harvest = 3 
         self.post_harvest_storage_instructions = ''
-        
+        self.gdd_threshold_for_early_harvest = 0.8 #as in you can start harvesting at 80% of the growing degree days 
+        self.aquacrop_gdd_at_mature = 432
 
 
 class crop_plan:

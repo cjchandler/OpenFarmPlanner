@@ -73,7 +73,7 @@ print( opt3.Tmin[0] , " temp on first day")
 #ok now do the sims 
 
 
-if False:
+if True:
     opt3.do_aquacrop_sims()
     with open('testopt3.pickle', 'wb') as handle:
         pickle.dump( opt3 , handle, protocol=pickle.HIGHEST_PROTOCOL)

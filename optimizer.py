@@ -25,6 +25,8 @@ class optimizer3:
         self.Tmin = []
         self.list_of_sim_dfs = []
         self.list_of_Y_dicts = [{} , {}]
+        self.list_of_gdd_dicts = [{} , {}]
+        
         self.demand = [] #kg produce that can be sold per day 
         self.min_yield_fraction = 0.2 #this means that if a planting is projected to yeild below this fraction of the largest modelled harvest, it's not worth planting
         #we need this to avoid planting in the middle of the winter if there is a stretch of 5 days above zero or something.
@@ -68,6 +70,7 @@ class optimizer3:
         #sim all these dates if the temperature makes sense:
         self.list_of_sim_dfs = [pd.DataFrame()]* self.ndates
         self.list_of_Y_dicts = [ {} ]* self.ndates
+        self.list_of_gdd_dicts = [ {} ]* self.ndates
         # ~ print(self.farm_data.weather.df_predict)
         # ~ print(self.farm_data.weather.df_predict.loc[ datetime(2024,3,15) : datetime(2024,3,30) ] )
 
@@ -79,15 +82,20 @@ class optimizer3:
             if min_temp <= self.cultivar.death_temperature:
                 pass
                 self.list_of_Y_dicts[i] = {i: -1 }
+                self.list_of_gdd_dicts[i] = {i: -1 }
             else:
                 df= aquacrop_wrapper.simAquaCrop(  'plansim', "./aquacrop" , dt , self.farm_data.weather.df_predict['datetime'].iloc[-2] ,  self.farm_data.weather.df_predict , self.cultivar.minimum_harvest_temperature, self.cultivar.cropfilename , self.sample_crop_plan.details['irrigation.IRR']) 
                 self.list_of_sim_dfs[i] = df 
                 df['dateobject']
                 Y_dict = {}
+                gdd_dict = {}
+                ggd_cum  = 0 
                 for a in range( 0 , len(df.index)):
                     Y_dict[a + i] = df['Y(fresh)'].iloc[a]*1000/10000 #this units thing is so we get kg/m2 not ton per hectacre
-                    
+                    ggd_cum += df['GD'].iloc[a]
+                    gdd_dict[a+i ] = ggd_cum
                 self.list_of_Y_dicts[i] = Y_dict
+                self.list_of_gdd_dicts[i] = gdd_dict
                 
                 
         return
@@ -116,14 +124,23 @@ class optimizer3:
         planting_index = -1
         productivity = - 1
         if self.harvest_dates_bool[i] == 1:
-            #look through all the sims for the one with a harvest index higher than this i, which is also a planting date 
+            #look through all the sims for the one with a harvest index higher than this i, which is also a planting date index 'a'
+            #i is harvest day index
             for a in range(0 , i):
                 Y_dict = self.list_of_Y_dicts[a]
+                gdd_dict = self.list_of_gdd_dicts[a]
                 sim_harvest_index = max( Y_dict)
                 if sim_harvest_index >= i and self.planting_dates_bool[a] > 0 :
-                    planting_index = a
-                    productivity = Y_dict[i]
-                    break
+                    #check to make sure we're not trying to harvest a crop thats immature, i is harvest day, so look that up 
+                    #in the gdd_dict which is cumulative gdd for this sim. compare with gdd to maturity and threshold for harvesting
+                    if (gdd_dict[i]/self.sample_crop_plan.details['cultivar_class'].aquacrop_gdd_at_mature) > self.sample_crop_plan.details['cultivar_class'].gdd_threshold_for_early_harvest:
+                        planting_index = a
+                        productivity = Y_dict[i]
+                        break
+                    else: 
+                        #this planting isn't going to work, and it's only going to get less and less
+                        #mature if you keep looking at later and later plantings so just return 
+                        return -1 , -1
         
             #ok so now we have a planting index and a productivity
             if productivity <= 0: #but it doesn't work if productivity ==0 
