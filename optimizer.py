@@ -29,6 +29,9 @@ class optimizer3:
         self.min_yield_fraction = 0.2 #this means that if a planting is projected to yeild below this fraction of the largest modelled harvest, it's not worth planting
         #we need this to avoid planting in the middle of the winter if there is a stretch of 5 days above zero or something.
 
+        self.planting_areas = []
+        self.n_plantings_on_this_day = []
+        
 
     def setup_allowed_harvest_planting_dates(self):
         self.dates = pd.date_range(start= self.startdate, end=self.enddate  , freq='D').to_list()
@@ -113,21 +116,40 @@ class optimizer3:
         planting_index = -1
         productivity = - 1
         if self.harvest_dates_bool[i] == 1:
-            #look through all the sims for the one with a harvest index higher than this i 
+            #look through all the sims for the one with a harvest index higher than this i, which is also a planting date 
             for a in range(0 , i):
                 Y_dict = self.list_of_Y_dicts[a]
                 sim_harvest_index = max( Y_dict)
-                if sim_harvest_index >= i:
+                if sim_harvest_index >= i and self.planting_dates_bool[a] > 0 :
                     planting_index = a
                     productivity = Y_dict[i]
                     break
         
             #ok so now we have a planting index and a productivity
+            if productivity <= 0: #but it doesn't work if productivity ==0 
+                return -1 , -1 
+                
             area = demand/productivity
             return planting_index , area
         else:
             return -1 , -1 
+    
+    def find_all_planting_areas( self):
+        shelf_life = self.sample_crop_plan.details['cultivar_class'].shelf_life_post_harvest
+        self.planting_areas = np.zeros(self.ndates)
+        self.n_plantings_on_this_day = np.zeros(self.ndates)
         
+        for ih, h_val in enumerate(self.harvest_dates_bool):
+            if h_val == True: 
+                try:
+                    demand = sum( self.demand[ih-shelf_life: ih])
+                except:
+                    demand = 0 
+                ip , area = self.find_planting_area(ih , demand)  
+                if ip >= 0 and area > 0:
+                    self.planting_areas[ip] += area 
+                    self.n_plantings_on_this_day[ip] += 1 
+                     
             
 
 

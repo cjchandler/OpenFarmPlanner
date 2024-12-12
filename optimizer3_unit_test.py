@@ -96,3 +96,12 @@ i,area = opt3.find_planting_area( 84 , 1)
 assert  ( abs(area -  1.0/3.8993)  < 0.001) 
 assert  ( i==21) 
 print ( opt3.find_planting_area( 87 , 1) )
+
+opt3.set_constant_demand(1)
+#constant demand of 1 kg per day 
+opt3.find_all_planting_areas()
+print( opt3.n_plantings_on_this_day)
+print( opt3.list_of_Y_dicts[2])
+print( opt3.planting_dates_bool)
+print( opt3.planting_areas)
+
