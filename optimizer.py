@@ -34,6 +34,9 @@ class optimizer3:
         self.planting_areas = []
         self.n_plantings_on_this_day = []
         
+        self.labour_constant_min =2
+        self.labour_min_per_m2=10
+        
 
     def setup_allowed_harvest_planting_dates(self):
         self.dates = pd.date_range(start= self.startdate, end=self.enddate  , freq='D').to_list()
@@ -166,7 +169,58 @@ class optimizer3:
                 if ip >= 0 and area > 0:
                     self.planting_areas[ip] += area 
                     self.n_plantings_on_this_day[ip] += 1 
-                     
+
+    def estimate_labour_for_crop(self  ):
+        crop_plan = self.sample_crop_plan
+        #give a constan time for this crop, and a time per m2 
+        
+        
+        #if there are events in past crop plans with the same description, worker id as the proposed ones,
+        #make a list of mean_past_events where each event has a mean time scaled by area
+        if ( len(self.farm_data.past_crop_plan_list) > 0 ): 
+            self.farm_data.mean_past_events = [ self.past_crop_plan_list[0].event_list[0] ]
+            for past_crop_plan in self.farm_data.past_crop_plan_list:
+                for pe in past_crop_plan:
+                #check if pe is in mean_past_events. 
+                    for me in mean_past_events:
+                        if pe.compare_events(me) == True:
+                            #update the mean, add the area aka soil plot ids and add and time_taken_min
+                            me.details['time_taken_min'] = me.details['time_taken_min'] + pe.details['time_taken_min'] 
+                            me.details['soil_plot_ids'] = me.details['soil_plot_ids']  + pe.details['soil_plot_ids'] 
+                        else:
+                            mean_past_events.append(pe)
+
+        #now look at the proposed events. crop_plan.event_list
+        
+        #now make a best time 'time_estimate_generated' for each of these events using either mean_past_events or calcualtion from human input
+        # ~ print( len(joined_proposed_events) ) 
+        # ~ joined_proposed_events[0].pretty_print() 
+        
+        area_time_min = 0
+        constant_time_min = 0 
+        switching_min = 2 #time cost to switch jobs  
+        for e in crop_plan.event_list:
+            area = 0 
+            for sid in e.details['soil_plot_ids']:
+                area+= self.farm_data.soil_plot_dict[ sid ].details['area_m2']
+        
+            e.details['time_estimate_generated']= switching_min + e.details['time_estimate_min_per_m2']*area
+            area_time_min += e.details['time_estimate_min_per_m2']
+            constant_time_min += switching_min
+        
+        self.labour_constant_min = constant_time_min
+        self.labour_min_per_m2 = area_time_min
+        
+        return  constant_time_min, area_time_min
+        
+    def estimate_labour_for_crop_Matrix(self , area_vector  ):
+        #give a time for this crop area vector 
+        labour_time = 0
+        for a in area_vector:
+            if a > 0:
+                labour_time += a*self.labour_min_per_m2 + self.labour_constant_min
+        
+        return labour_time
             
 
 

@@ -255,6 +255,7 @@ class crop_event:
         self.computer_details['planned_timestamp'] = 0 
         self.computer_details['actual_timestamp_start'] = -1 
         self.computer_details['actual_timestamp_end'] = -1
+        self.computer_details['is_finished'] = False 
  
     
     def compare_events( self , eB ):

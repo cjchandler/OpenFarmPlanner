@@ -73,7 +73,7 @@ print( opt3.Tmin[0] , " temp on first day")
 #ok now do the sims 
 
 
-if True:
+if False:
     opt3.do_aquacrop_sims()
     with open('testopt3.pickle', 'wb') as handle:
         pickle.dump( opt3 , handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -97,11 +97,18 @@ assert  ( abs(area -  1.0/3.8993)  < 0.001)
 assert  ( i==21) 
 print ( opt3.find_planting_area( 87 , 1) )
 
-opt3.set_constant_demand(1)
+opt3.set_constant_demand(5)
 #constant demand of 1 kg per day 
 opt3.find_all_planting_areas()
 print( opt3.n_plantings_on_this_day)
 print( opt3.list_of_Y_dicts[2])
 print( opt3.planting_dates_bool)
 print( opt3.planting_areas)
+
+
+##these aren't really reasy for unit tests, I'm going to probably have to change them a lot 
+opt3.estimate_labour_for_crop()
+print( opt3.estimate_labour_for_crop_Matrix( opt3.planting_areas))
+hrs = opt3.estimate_labour_for_crop_Matrix( opt3.planting_areas)/60
+print( sum(opt3.n_plantings_on_this_day)*opt3.demand[0]*10/hrs, "hourly wage" )
 
