@@ -17,7 +17,7 @@
       "days after planting": "",
       "growing degree days after planting": "",
       "is harvest step": 1,
-      "planned_timestamp": 0,
+      "planned_timestamp": 5000000,
       "actual_timestamp_start": -1,
       "actual_timestamp_end": -1,
       "is_finished": false

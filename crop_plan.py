@@ -14,14 +14,16 @@ import os
 
 from cultivar import *
 from crop_event import *
+from soil_plot import *
 
 class crop_plan:
     def __init__(self):
         self.event_list = [] 
         self.simdf = pd.DataFrame()
         self.cultivar = cultivar() 
+        self.soil_plots = [] #each soil plot has an area, so this is how to figure out how much we are planting
+        
         self.details = {}
-        self.details['soil_plot_ids'] = [] #each soil plot has an area, so this is how to figure out how much we are planting
         self.details['location'] = "placename" #no spaces or special characters here, used as a file name part
         self.details['cropfile.CRO'] = "saladbowl3.CRO" 
         self.details['irrigation.IRR'] = "(NONE)" 
@@ -57,7 +59,14 @@ class crop_plan:
             pathfile = path+ dir_name + "/event" + str(i) + ".json"
             e.dump_to_json(pathfile)
         
+        for i , s in enumerate( self.soil_plots ):        #then dump all the events in event list... 
+            pathfile = path+ dir_name + "/"
+            s.dump_to_json(pathfile)
+        
+        
         return path + dir_name
+        
+        
  
     def dump_self_details_to_json(self ,path ):
         #look in path, is there an 
@@ -107,7 +116,15 @@ class crop_plan:
         #the events are out of order, sort them
         self.event_list = sorted( self.event_list, key=lambda x: x.details["planned_timestamp"]) 
         
-        
+        #get soil plots 
+        ##now get the events
+        soilfiles = []
+        for filename in glob.glob(path + "/*soil_plot.json"):
+            soilfiles.append(filename)
+        for sp in soilfiles:
+            sptemp = soil_plot()
+            sptemp.load_from_json( sp)
+            self.soil_plots.append( sptemp)
     
     
     
@@ -246,22 +263,4 @@ class crop_plan:
 
 
 
-lettuce_plan = crop_plan()
 
-lettuce_plan.event_list.append( demo1_crop_event() )
-lettuce_plan.event_list.append( demo2_crop_event() )
-lettuce_plan.event_list.append( demo3_crop_event() )
-lettuce_plan.event_list.append( demo4_crop_event() )
-lettuce_plan.event_list.append( demo5_crop_event() )
-lettuce_plan.print_plan()
-
-
-
-
-
-
-dirdump=lettuce_plan.dump_to_json("./")
-lettuce_plan2 = crop_plan()
-lettuce_plan2.cultivar.details['name'] = "redwood"
-lettuce_plan2.load_crop_plan_from_dir(dirdump)
-lettuce_plan2.print_plan()

@@ -1,4 +1,4 @@
-# load daily data from solcast
+# load daily data from solcast, see bottom for how to use
 
 #walk through all my files with name *past_7_days.py
 
@@ -17,7 +17,11 @@ class weather_data_loader:
         self.dfclimate = pd.DataFrame() #this is the output 
         self.path_to_7day_solcast = "/home/carl/Git_Projects/datalogging/solcast"
         self.filepath_60_min_solcast = "./43.913601_-66.070782_Solcast_PT60M.csv"
-        self.climate_change_canada_filelist = [ "yarA0.csv", "yarA1.csv","yarA2.csv","yarA3.csv","yarA4.csv" ]
+        self.climate_change_canada_filelist = [ "yarA0.csv", "yarA1.csv","yarA2.csv","yarA3.csv","yarA4.csv" , "climate-daily_25_jan_2025.csv"]
+        #I got these file from https://climate-change.canada.ca/climate-data/#/daily-climate-data
+        #lots of data, but not always including data from today, like 3 -4 days behind
+        
+        
         self.climate_weather_gc_filelist = ["yarA_2024.csv"]
         
         
@@ -255,8 +259,14 @@ class weather_data_loader:
         print(dfclimate)
 
 
+#update the latest files from downloads at, replace the : 
+# self.climate_change_canada_filelist = [ "yarA0.csv", "yarA1.csv","yarA2.csv","yarA3.csv","yarA4.csv", "climate-daily_25_jan_2025.csv" ]
+#        self.climate_weather_gc_filelist = ["yarA_2024.csv"]
 
-W = weather_data_loader()
-W.path_to_7day_solcast = '/home/carl/Git_Projects/datalogging/solcast'
-W.do_ET0()
+#I got these file from https://climate-change.canada.ca/climate-data/#/daily-climate-data
+#lots of data, but not always including data from today, like 3 -4 days behind
+
+Wdl = weather_data_loader()
+Wdl.path_to_7day_solcast = '/home/carl/Git_Projects/datalogging/solcast' ##add files here
+Wdl.do_ET0() #this saves a file that the rest of the open farm planner can use in the weather class
 
