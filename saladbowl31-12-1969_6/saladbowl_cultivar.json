@@ -1,0 +1,11 @@
+{
+      "name": "saladbowl",
+      "cropfilename": "saladbowl3.CRO",
+      "species": "lactuca sativa",
+      "minimum_harvest_temperature": 0,
+      "death_temperature": 0,
+      "shelf_life_post_harvest": 3,
+      "post_harvest_storage_instructions": "keep at 4c",
+      "gdd_threshold_for_early_harvest": 0.8,
+      "aquacrop_gdd_at_mature": 432
+}

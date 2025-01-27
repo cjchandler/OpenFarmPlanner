@@ -1,0 +1,21 @@
+{
+      "event_name": "harvest",
+      "human_instructions": "cut head in checker board pattern to leave space for the others to grow bigger. Use a a knife on main root under the leaves",
+      "time_estimate_min_per_m2": 5,
+      "time_estimate_generated": 0,
+      "time_taken_min": -1,
+      "worker_id": "",
+      "soil_plot_ids": [],
+      "tools used": [
+            "knife",
+            "basket"
+      ],
+      "consumables_used": [],
+      "days after planting": "",
+      "growing degree days after planting": "",
+      "is harvest step": 0,
+      "planned_timestamp": 400,
+      "actual_timestamp_start": -1,
+      "actual_timestamp_end": -1,
+      "is_finished": false
+}

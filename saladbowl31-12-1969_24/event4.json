@@ -1,0 +1,24 @@
+{
+      "event_name": "post harvest",
+      "human_instructions": "put lettuce in water tub with blower for agitation. Remove after 15 min, put on rack to dry for 15 min. Place in plastic bags for sale, add price stickers",
+      "time_estimate_min_per_m2": 6,
+      "time_estimate_generated": 0,
+      "time_taken_min": -1,
+      "worker_id": "",
+      "soil_plot_ids": [],
+      "tools used": [
+            "washing tub with blown air agitator",
+            "drying rack "
+      ],
+      "consumables_used": [
+            "plastic bags",
+            "price stickers"
+      ],
+      "days after planting": "",
+      "growing degree days after planting": "",
+      "is harvest step": 1,
+      "planned_timestamp": 500,
+      "actual_timestamp_start": -1,
+      "actual_timestamp_end": -1,
+      "is_finished": false
+}
