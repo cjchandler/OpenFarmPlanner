@@ -89,12 +89,15 @@ class crop_plan:
         path = path_to_crop_plan_dir
         self.load_self_details_from_json(path)
         
+        outtest= ""
+        
         ##now get the sim .csv
         csvfiles = []
         for filename in glob.glob(path + "/*simdf.csv"):
             csvfiles.append(filename)
         if (     len(csvfiles) == 1 ):
             self.simdf = pd.read_csv( csvfiles[0])
+            outtest = outtest+"sim" 
         
         ##now get the cultivar class
         cultivarfiles = []
@@ -126,7 +129,7 @@ class crop_plan:
             sptemp.load_from_json( sp)
             self.soil_plots.append( sptemp)
     
-    
+        return outtest
     
         
          
@@ -182,7 +185,7 @@ class crop_plan:
             #if it a fixed time? 
             if realtiming == True :
                 print('fixed time')
-                e.computer_details['planned_timestamp'] = datetime.timestamp(planting_datetime  + timedelta(days = int(e.details['days after planting'])))
+                e.details['planned_timestamp'] = datetime.timestamp(planting_datetime  + timedelta(days = int(e.details['days after planting'])))
                 
             
             #is it a harvesting step?
@@ -198,7 +201,7 @@ class crop_plan:
                 for i, stage in enumerate(self.simdf['Stage']):
                     if int(stage) == 0:
                         planned_datetime  = self.simdf['dateobject'].loc[i]
-                        e.computer_details['planned_timestamp']  = datetime.timestamp( planned_datetime ) + harvest_step
+                        e.details['planned_timestamp']  = datetime.timestamp( planned_datetime ) + harvest_step
                         break
                         
                 
@@ -217,7 +220,7 @@ class crop_plan:
                     gddsum += g
                     if gddsum >= gdd:
                         planned_datetime  = self.simdf['dateobject'].loc[i]
-                        e.computer_details['planned_timestamp']  = datetime.timestamp( planned_datetime )
+                        e.details['planned_timestamp']  = datetime.timestamp( planned_datetime )
                         break
                 
         #sort events list
